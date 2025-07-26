@@ -1,0 +1,10 @@
+.navigation-bar {
+    display: grid;
+    grid-template-columns: 150px 150px 150px;
+}
+
+.key-val {
+    display: grid;
+    grid-template-columns: 150px 300px;
+}
+
