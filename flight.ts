@@ -810,7 +810,6 @@ interface VersionStream {
     init(): void
     load(first: number, onEntity: (entity: VersionedEntity) => void, onComplete: () => void): void
     save(entities: VersionedEntity[], onSaved: () => void): void
-    busy(): boolean
 }
 
 class BufferingVersionStream implements VersionStream {
@@ -856,23 +855,27 @@ class BufferingVersionStream implements VersionStream {
     }
 }
 
-enum LocalRemoteState {
-    ONLINE,
-    ONLINE_TO_OFFLINE,
-    OFFLINE,
-    OFFLINE_TO_ONLINE,
-    SYNCING_OFFLINE_TO_ONLINE
+class ReadOnlyVersionStream implements VersionStream {
+    constructor(
+        private engine: VersionStreamEngine,
+        private onError: (message: string) => void
+    ) {
+    }
+
+    init(): void {
+        this.engine.init()
+    }
+
+    load(first: number, onEntity: (entity: VersionedEntity) => void, onComplete: () => void): void {
+        this.engine.load(first, onEntity, onComplete)
+    }
+
+    save(entities: VersionedEntity[], onSaved: () => void): void {
+        this.onError("Can not save in read-only mode")
+    }
 }
 
-/**
- * We don't wait for the local cache
- */
 class LocalRemoteVersionStream implements VersionStream {
-
-    private offlineMode = false
-    private switching = false
-    private buffer: { entities: VersionedEntity[], onSaved: () => void }[] = []
-
     constructor(
         private local: VersionStream,
         private remote: VersionStream
@@ -885,103 +888,27 @@ class LocalRemoteVersionStream implements VersionStream {
     }
 
     /**
-     * It is possible to switch to offline mode during loading.
-     *
      * It will first load locally, and then load the rest remotely.
-     * If we are in offline mode after loading locally, we skip loading
-     * remotely.
      */
     load(first: number, onEntity: (entity: VersionedEntity) => void, onComplete: () => void) {
-        // TODO in-between stuff
         let nextId = first
         this.local.load(first, (entity) => {
             nextId = entity.entity + 1
             onEntity(entity)
         }, () => {
-            if(this.offlineMode) {
+            this.remote.load(nextId, (entity) => {
+                this.local.save([entity], () => {})
+                onEntity(entity)
+            }, () => {
                 onComplete()
-            } else {
-                this.remote.load(nextId, (entity) => {
-                    this.local.save([entity], () => {})
-                    onEntity(entity)
-                }, () => {
-                    onComplete()
-                })
-            }
+            })
         })
     }
 
     save(entities: VersionedEntity[], onSaved: () => void) {
-        if(this.switching) {
-            this.buffer.push({entities: entities, onSaved: onSaved})
-        } else {
-            if (this.offlineMode) {
-                this.local.save(entities, () => {
-                    this.checkSwitching()
-                    onSaved()
-                })
-            } else {
-                this.remote.save(entities, () => {
-                    this.local.save(entities, () => {
-                        this.checkSwitching()
-                    })
-                    this.checkSwitching()
-                    onSaved()
-                })
-            }
-        }
-    }
-
-    busy(): boolean {
-        return this.switching || this.local.busy() || this.remote.busy()
-    }
-
-    goOffline() {
-        if(!this.offlineMode) {
-            this.startSwitching();
-        }
-    }
-
-    goOnline() {
-        if(this.offlineMode) {
-            this.startSwitching();
-        }
-    }
-
-    private startSwitching() {
-        if (this.switching) {
-            // We were already switching in the other direction
-            this.endSwitching();
-        } else {
-            this.switching = true
-            this.checkSwitching()
-        }
-    }
-
-    private checkSwitching() {
-        if(this.switching && !this.remote.busy() && !this.local.busy()) {
-            if(this.offlineMode) {
-                // Offline -> Online
-                this.offlineMode = false
-                // this.syncLocalToRemote()
-            } else {
-                // Online -> Offline
-                this.offlineMode = true
-                this.endSwitching()
-            }
-        }
-    }
-
-    private syncLocalToRemote(onDone: () => void) {
-
-    }
-
-    private endSwitching() {
-        this.switching = false
-        let buf = this.buffer
-        this.buffer = []
-        buf.forEach(b => {
-            this.save(b.entities, b.onSaved)
+        this.remote.save(entities, () => {
+            this.local.save(entities, () => {})
+            onSaved()
         })
     }
 }
