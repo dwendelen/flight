@@ -38,11 +38,17 @@ class EntityRepo {
         this.versionStream.load(0, (e) => {
             for (let i = 0; i < this.entities.length; i++) {
                 if(this.entities[i].entity == e.entity) {
-                    this.entities[i] = e
+                    if(e.type === "tombstone") {
+                        this.entities.splice(i, 1)
+                    } else {
+                        this.entities[i] = e
+                    }
                     return
                 }
             }
-            this.entities.push(e)
+            if(e.type !== "tombstone") {
+                this.entities.push(e)
+            }
         }, onComplete)
     }
 
@@ -167,8 +173,9 @@ class TripPage {
             this.name = new Value(trip.name)
             this.stops = new Value<StopElement[]>(
                 tripPlan.stops
-                    // TODO
-                    .map(st => new StopElement(st.aerodrome.toString()))
+                    .map(st => {
+                        return new StopElement(st.aerodrome.toString(), []);
+                    })
             )
         }
     }
@@ -185,15 +192,61 @@ class TripPage {
     }
 
     addStop() {
-        this.stops.set([...this.stops.get(), new StopElement("New Stop")])
+        this.stops.set([...this.stops.get(), new StopElement("New Stop", [])])
+    }
+
+    insertStop(stopElement: StopElement) {
+        let stops = this.stops.get();
+        let idx = stops.indexOf(stopElement);
+        if(idx === -1) {
+            throw new Error()
+        }
+        let newStops = [...stops];
+        newStops.splice(idx, 0, new StopElement("New Stop", []))
+        this.stops.set(newStops)
     }
 }
 
 class StopElement {
     name: Value<string>
-    constructor(name: string) {
+    waypoints: Value<WaypointElement[]>
+    constructor(name: string, waypoints: WaypointElement[]) {
         this.name = new Value(name)
+        this.waypoints = new Value(waypoints)
     }
+
+    addWaypoint() {
+        this.waypoints.set([...this.waypoints.get(), new WaypointElement("New Waypoint", new LegElement())])
+    }
+
+    insertWaypoint(waypointElement: WaypointElement) {
+        let waypoints = this.waypoints.get();
+        let idx = waypoints.indexOf(waypointElement);
+        if(idx === -1) {
+            throw new Error()
+        }
+        let newWaypoints = [...waypoints];
+        newWaypoints.splice(idx, 0, new WaypointElement("New Waypoint", new LegElement()))
+        this.waypoints.set(newWaypoints)
+    }
+}
+
+class WaypointElement {
+    name: Value<string>
+    altitude: Value<number | null>
+
+    leg: LegElement
+
+    constructor(name: string, leg: LegElement) {
+        this.name = new Value(name)
+        this.leg = leg
+    }
+}
+
+class LegElement {
+    trueTrack: Value<number | null>
+    distance: Value<number | null>
+    altitude: Value<number | null>
 }
 
 /*
@@ -254,8 +307,21 @@ class StopElement {
 
 function trip(tripPage: TripPage) {
     let stops = map(tripPage.stops, (stopElem) => {
-        return arr(stopElem.map(se => {
-            return div(textInput(value(se.name)))
+        return arr(stopElem.flatMap((se: StopElement) => {
+            let waypoints = map(se.waypoints, (waypoints) => {
+                return arr(waypoints.flatMap((we: WaypointElement) => {
+                    return [
+                        button(text("Insert Waypoint"), onklick(() => { se.insertWaypoint(we) })),
+                        div(textInput(value(we.name)))
+                    ]
+                }))
+            })
+            return [
+                button(text("Insert Stop"), onklick(() => { tripPage.insertStop(se) })),
+                div(textInput(value(se.name))),
+                div(sub(waypoints)),
+                button(text("Add Waypoint"), onklick(() => se.addWaypoint()))
+            ]
         }))
     })
     return arr([
