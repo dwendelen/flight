@@ -28,6 +28,7 @@ class Application {
 }
 
 class EntityRepo {
+    private versions: VersionedEntity[] = []
     private entities: VersionedEntity[] = []
 
     constructor(private versionStream: VersionStream) {
@@ -36,6 +37,7 @@ class EntityRepo {
     init(onComplete: () => void) {
         this.versionStream.init()
         this.versionStream.load(0, (e) => {
+            this.versions.push(e)
             for (let i = 0; i < this.entities.length; i++) {
                 if(this.entities[i].entity == e.entity) {
                     if(e.type === "tombstone") {
@@ -81,6 +83,11 @@ class EntityRepo {
         } else {
             return this.entities[len - 1].version + 1
         }
+    }
+
+    getByVersion<T extends VersionedEntity>(version: number): T {
+        return this.versions
+            .filter(v => v.version === version)[0] as T
     }
 }
 
@@ -164,21 +171,85 @@ function tripsList(tripsPage: TripsPage): Component {
 class TripPage {
     name: Value<string>
     firstStop: Value<StopElement | null>
+    aerodromes: Aerodrome[]
 
     constructor(private entityRepo: EntityRepo, private tripsPage: TripsPage, private trip: Trip | null, private tripPlan: TripPlan | null) {
-        // if(this.trip == null) {
-        this.name = new Value( "")
-        this.firstStop = new Value<StopElement | null>(null)
-            // this.stops = new Value<StopElement[]>([])
-        // } else {
-        //     this.name = new Value(trip.name)
-        //     this.stops = new Value<StopElement[]>(
-        //         tripPlan.stops
-        //             .map(st => {
-        //                 return new StopElement(st.aerodrome.toString(), []);
-        //             })
-        //     )
-        // }
+        this.aerodromes = entityRepo.getAllOfType("aerodrome")
+
+        if(trip == null) {
+            this.name = new Value( "New Trip")
+        } else {
+            this.name = new Value(this.trip.name)
+
+        }
+        if(tripPlan == null) {
+            this.firstStop = new Value(null)
+        } else {
+            let maybeStop = tripPlan.stops
+                .filter(st => {
+                    return tripPlan.flightPlans
+                        .filter(fp => fp.to === st.id)
+                        .length === 0
+                });
+            if(maybeStop.length === 0) {
+                this.firstStop = new Value(null)
+            } else {
+                let stopId = maybeStop[0].id;
+
+                let mapStop = (id: number): StopElement => {
+                    let stop = tripPlan.stops
+                        .filter(st => st.id === id)[0]
+                    let flight = mapFlight(id)
+                    let aerodrome: Aerodrome = this.entityRepo.getByVersion(stop.aerodrome);
+                    return new StopElement(flight, new Value(aerodrome))
+                }
+                let mapFlight = (fromId: number) => {
+                    let maybeFlight = tripPlan.flightPlans
+                        .filter(fl => fl.from === fromId)
+                    if(maybeFlight.length === 0) {
+                        return null
+                    } else {
+                        let flight = maybeFlight[0]
+                        let stopElement = mapStop(flight.to)
+                        let maybeWaypoint = flight.waypoints
+                            .filter(wp => {
+                                return flight.legs
+                                    .filter(l => l.to === wp.id)
+                                    .length === 0
+                            })
+                        if(maybeWaypoint.length === 0) {
+                            return new FlightElement(stopElement, new Value(null))
+                        } else {
+                            let firstId = maybeWaypoint[0].id
+
+                            let mapWaypoint = (id: number): WaypointElement => {
+                                let waypoint = flight.waypoints
+                                    .filter(wp => wp.id === id)[0]
+                                let leg = mapLeg(id)
+                                return new WaypointElement(leg, new Value(waypoint.name))
+                            }
+
+                            let mapLeg = (fromId: number): LegElement => {
+                                let maybeLeg = flight.legs
+                                    .filter(l => l.from === fromId)
+                                if(maybeLeg.length === 0) {
+                                    return null
+                                } else {
+                                    let leg = maybeLeg[0]
+                                    let waypoint = mapWaypoint(leg.to)
+                                    return new LegElement(waypoint)
+                                }
+                            }
+
+                            let waypointElement = mapWaypoint(firstId)
+                            return new FlightElement(stopElement, new Value(waypointElement))
+                        }
+                    }
+                }
+
+                this.firstStop = new Value(mapStop(stopId))
+            }
+        }
     }
 
     save() {
@@ -213,7 +284,7 @@ class TripPage {
 class StopElement {
     constructor(
         public readonly next: FlightElement | null,
-        public readonly name: Value<string>
+        public readonly aerodrome: Value<Aerodrome | null>
     ) { }
 
     insertStopAfter(stopElement: StopElement): StopElement {
@@ -224,12 +295,12 @@ class StopElement {
         } else {
             newFlight = this.next.insertStopAfter(stopElement);
         }
-        return new StopElement(newFlight, this.name)
+        return new StopElement(newFlight, this.aerodrome)
     }
 }
 
 function newStopElement(next: FlightElement | null): StopElement {
-    return new StopElement(next, new Value("New Stop"))
+    return new StopElement(next, new Value(null))
 }
 
 function newFlightElement(next: StopElement): FlightElement {
@@ -346,63 +417,6 @@ class LegElement {
     }
 }
 
-/*
-    <insert Stop>
-    Stop 1 <delete>
-    <insert Stop>
-    <add waypoint>
-    Stop 2 <delete>
-        <insert waypoint>
-        Waypoint 2-1 <delete>
-            Leg 2-1 <insert waypoint>
-        Waypoint 2-2 <delete>
-            Leg 2-2 <insert waypoint>
-        Waypoint 2-3 <delete>
-        <add waypoint>
-    Stop 3 <delete>
-    <add Stop>
-
-    <insert Stop>
-    Stop 1
-        Waypoint 1-1
-        Waypoint 1-2
-    Stop 2
-        Waypoint 2-1
-        Waypoint 2-2
-    Stop 3
-    <add Stop>
-
-
-
-    <insert Stop>
-    Stop 1
-        <insert stop>
-        <insert waypoint>
-        Waypoint 1-1
-            Leg 1-1
-        Waypoint 1-2
-            Leg 1-2
-        Waypoint 1-3
-        <add waypoint>
-        <insert stop>
-    Stop 2
-        <insert stop>
-        <insert waypoint>
-        Waypoint 2-1
-            Leg 2-1
-        Waypoint 2-2
-            Leg 2-2
-        Waypoint 2-3
-            Leg 2-3
-        <add waypoint>
-        <insert stop>
-    Stop 3
-    <add Stop>
-
-
- */
-
-
 function trip(tripPage: TripPage) {
     return arr([
         h1(text("Trip")),
@@ -432,7 +446,7 @@ function renderStopElement(
     stopElement: StopElement
 ): Component[] {
     return [
-        div(input(value(stopElement.name))),
+        div(aerodromeInput(tripPage.aerodromes, stopElement.aerodrome)),
         ...renderPostStopElement(tripPage, stopElement)
     ]
 }
@@ -503,6 +517,28 @@ function renderPostWaypointElement(
             ...renderWaypointElement(flightElement, legElement.next)
         ]
     }
+}
+
+function aerodromeInput(
+    aerodromes: Aerodrome[],
+    aerodrome: Value<Aerodrome | null>
+): Component {
+    let val = aerodrome.get()
+    let code = new Value(val === null? null : val.code)
+    let inp = new Value("")
+
+    let doOnBlur = () => {
+        let maybeAerodrome = aerodromes
+            .filter(a => a.code === inp.get())
+        if(maybeAerodrome.length > 0) {
+            let newAero = maybeAerodrome[0];
+            aerodrome.set(newAero)
+        }
+        let val = aerodrome.get();
+        code.set(val === null? null : val.code)
+    }
+
+    return input(value(inp), valueIn(code), onBlur(doOnBlur))
 }
 
 class ManagePage {
@@ -710,6 +746,7 @@ interface Aerodrome extends VersionedEntity {
 }
 
 type AerodromeId = number
+type AerodromeVersion = number
 
 interface Trip extends VersionedEntity {
     type: "trip"
@@ -735,7 +772,7 @@ interface TripPlan extends VersionedEntity {
 
 interface Stop {
     id: number
-    aerodrome: AerodromeId
+    aerodrome: AerodromeVersion
     refuel: boolean
 }
 
@@ -751,7 +788,7 @@ interface FlightPlan {
 
 interface Waypoint {
     id: number
-    name: String
+    name: string
     altitude: number | null
 }
 
@@ -919,6 +956,24 @@ function value(val: Value<string>): Component {
         }
         return () => {
             elem.onchange = null
+        }
+    }
+}
+
+function valueIn(val: View<string>): Component {
+    return (elem: HTMLInputElement) => {
+        elem.value = val.get()
+        return val.subscribe((s) => {
+            elem.value = s
+        })
+    }
+}
+
+function onBlur(fn: () => void): Component {
+    return (elem: HTMLInputElement) => {
+        elem.onblur = fn
+        return () => {
+            elem.onblur = null
         }
     }
 }
