@@ -65,6 +65,7 @@ class EntityRepo {
             }
             this.entities.push(entityVersion)
         })
+        this.versions.push(...entityVersions.sort(v => v.version))
     }
 
     getAllOfType<T extends VersionedEntity>(type: string): T[] {
@@ -77,11 +78,11 @@ class EntityRepo {
     }
 
     nextVersion() {
-        let len = this.entities.length;
+        let len = this.versions.length;
         if(len === 0) {
             return 0
         } else {
-            return this.entities[len - 1].version + 1
+            return this.versions[len - 1].version + 1
         }
     }
 
@@ -147,8 +148,14 @@ class TripsPage {
     }
 
     open(trp: Trip) {
-        let plan = (this.entityRepo.getAllOfType("plan") as TripPlan[])
-            .filter((tp: TripPlan) => tp.trip === trp.entity)[0];
+        let maybePlan = (this.entityRepo.getAllOfType("plan") as TripPlan[])
+            .filter((tp: TripPlan) => tp.trip === trp.entity);
+        let plan: TripPlan | null
+        if(maybePlan.length === 0) {
+            plan = null
+        } else {
+            plan = maybePlan[0]
+        }
         this.page.set(trip(new TripPage(this.entityRepo, this, trp, plan)))
     }
 }
@@ -253,13 +260,91 @@ class TripPage {
     }
 
     save() {
-        let tripEntity = this.trip === null? this.entityRepo.nextEntity() : this.trip.entity
+        let nextEntity = this.entityRepo.nextEntity();
+        let tripEntity: number
+        if(this.trip === null) {
+            tripEntity = nextEntity
+            nextEntity++
+        } else {
+            tripEntity = this.trip.entity
+        }
+        let planEntity: number
+        if(this.tripPlan === null) {
+            planEntity = nextEntity
+            nextEntity++
+        } else {
+            planEntity = this.tripPlan.entity
+        }
+        let nextVersion = this.entityRepo.nextVersion();
+        let nextId = 0
+        let stops: Stop[] = []
+        let flightPlans: FlightPlan[] = []
+        let visitStop = (stop: StopElement | null) => {
+            if(stop !== null) {
+                let aerodrome = stop.aerodrome.get();
+                stops.push({
+                    id: nextId,
+                    aerodrome: aerodrome === null ? null : aerodrome.version,
+                    refuel: false
+                })
+                nextId++
+                visitFlightPlans(stop.next)
+            }
+        }
+        let visitFlightPlans = (flight: FlightElement | null) => {
+            if(flight !== null) {
+                let nextIdFlight = 0
+                let waypoints: Waypoint[] = []
+                let legs: Leg[] = []
+
+                let visitWaypoint = (waypoint: WaypointElement | null) => {
+                    if(waypoint !== null) {
+                        waypoints.push({
+                            id: nextIdFlight,
+                            name: waypoint.name.get(),
+                            altitude: null
+                        })
+                        nextIdFlight++
+                        visitLeg(waypoint.next)
+                    }
+                }
+                let visitLeg = (leg: LegElement | null) => {
+                    if(leg !== null) {
+                        legs.push({
+                            from: nextIdFlight - 1,
+                            to: nextIdFlight,
+                            trueTrack: null,
+                            distance: null,
+                            altitude: null
+                        })
+                        visitWaypoint(leg.next)
+                    }
+                }
+                visitWaypoint(flight.firstWaypoint.get())
+
+                flightPlans.push({
+                    from: nextId - 1,
+                    to: nextId,
+                    waypoints: waypoints,
+                    legs: legs
+                })
+                visitStop(flight.next)
+            }
+        }
+        visitStop(this.firstStop.get())
         this.entityRepo.save([{
             type: "trip",
             entity: tripEntity,
-            version: this.entityRepo.nextVersion(),
+            version: nextVersion,
             name: this.name.get()
-        } as Trip])
+        } as Trip, {
+            type: "plan",
+            entity: planEntity,
+            version: nextVersion + 1,
+            trip: tripEntity,
+            stops: stops,
+            flightPlans: flightPlans
+        } as TripPlan])
         this.tripsPage.openHome()
     }
 
@@ -779,7 +864,6 @@ interface Stop {
 type StopId = number
 
 interface FlightPlan {
-    id: number
     from: StopId
     to: StopId
     waypoints: Waypoint[]
@@ -795,7 +879,6 @@ interface Waypoint {
 type WaypointId = number
 
 interface Leg  {
-    entity: number
     from: WaypointId
     to: WaypointId
     trueTrack: number | null
@@ -1091,8 +1174,8 @@ class IndexedDBEngine implements VersionStreamEngine {
                 entities.forEach(entity => {
                     obj.add(entity)
                 })
-                trans.commit()
                 trans.oncomplete = onSaved
+                trans.commit()
             })
     }
 }
