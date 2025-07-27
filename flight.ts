@@ -163,21 +163,22 @@ function tripsList(tripsPage: TripsPage): Component {
 
 class TripPage {
     name: Value<string>
-    stops: Value<StopElement[]>
+    firstStop: Value<StopElement | null>
 
     constructor(private entityRepo: EntityRepo, private tripsPage: TripsPage, private trip: Trip | null, private tripPlan: TripPlan | null) {
-        if(this.trip == null) {
-            this.name = new Value( "")
-            this.stops = new Value<StopElement[]>([])
-        } else {
-            this.name = new Value(trip.name)
-            this.stops = new Value<StopElement[]>(
-                tripPlan.stops
-                    .map(st => {
-                        return new StopElement(st.aerodrome.toString(), []);
-                    })
-            )
-        }
+        // if(this.trip == null) {
+        this.name = new Value( "")
+        this.firstStop = new Value<StopElement | null>(null)
+            // this.stops = new Value<StopElement[]>([])
+        // } else {
+        //     this.name = new Value(trip.name)
+        //     this.stops = new Value<StopElement[]>(
+        //         tripPlan.stops
+        //             .map(st => {
+        //                 return new StopElement(st.aerodrome.toString(), []);
+        //             })
+        //     )
+        // }
     }
 
     save() {
@@ -191,55 +192,130 @@ class TripPage {
         this.tripsPage.openHome()
     }
 
-    addStop() {
-        this.stops.set([...this.stops.get(), new StopElement("New Stop", [])])
-    }
-
-    insertStop(stopElement: StopElement) {
-        let stops = this.stops.get();
-        let idx = stops.indexOf(stopElement);
-        if(idx === -1) {
-            throw new Error()
+    insertStopAfter(stopElement: StopElement | null) {
+        let firstStop: StopElement | null = this.firstStop.get();
+        let newFirstStop: StopElement;
+        if (stopElement === null) {
+            let newFlight: FlightElement | null
+            if(firstStop === null) {
+                newFlight = null
+            } else {
+                newFlight = newFlightElement(firstStop)
+            }
+            newFirstStop = newStopElement(newFlight)
+        } else {
+            newFirstStop = firstStop.insertStopAfter(stopElement)
         }
-        let newStops = [...stops];
-        newStops.splice(idx, 0, new StopElement("New Stop", []))
-        this.stops.set(newStops)
+        this.firstStop.set(newFirstStop)
     }
 }
 
 class StopElement {
-    name: Value<string>
-    waypoints: Value<WaypointElement[]>
-    constructor(name: string, waypoints: WaypointElement[]) {
-        this.name = new Value(name)
-        this.waypoints = new Value(waypoints)
-    }
+    constructor(
+        public readonly next: FlightElement | null,
+        public readonly name: Value<string>
+    ) { }
 
-    addWaypoint() {
-        this.waypoints.set([...this.waypoints.get(), new WaypointElement("New Waypoint", new LegElement())])
-    }
-
-    insertWaypoint(waypointElement: WaypointElement) {
-        let waypoints = this.waypoints.get();
-        let idx = waypoints.indexOf(waypointElement);
-        if(idx === -1) {
-            throw new Error()
+    insertStopAfter(stopElement: StopElement): StopElement {
+        let newFlight: FlightElement
+        if(stopElement === this) {
+            let newStop = newStopElement(this.next)
+            newFlight = newFlightElement(newStop);
+        } else {
+            newFlight = this.next.insertStopAfter(stopElement);
         }
-        let newWaypoints = [...waypoints];
-        newWaypoints.splice(idx, 0, new WaypointElement("New Waypoint", new LegElement()))
-        this.waypoints.set(newWaypoints)
+        return new StopElement(newFlight, this.name)
     }
 }
 
+function newStopElement(next: FlightElement | null): StopElement {
+    return new StopElement(next, new Value("New Stop"))
+}
+
+function newFlightElement(next: StopElement): FlightElement {
+    return new FlightElement(next, new Value(null))
+}
+
+class FlightElement {
+    constructor(
+        public readonly next: StopElement,
+        public readonly firstWaypoint: Value<WaypointElement | null>
+    ) {  }
+
+    insertStopAfter(stopElement: StopElement): FlightElement {
+        let newStopElement = this.next.insertStopAfter(stopElement);
+        return new FlightElement(newStopElement, this.firstWaypoint);
+    }
+
+    insertWaypointAfter(waypointElement: WaypointElement | null) {
+        let firstWaypoint: WaypointElement | null = this.firstWaypoint.get();
+        let newFirstWaypoint: WaypointElement;
+        if (waypointElement === null) {
+            let newLeg: LegElement | null
+            if(firstWaypoint === null) {
+                newLeg = null
+            } else {
+                newLeg = newLegElement(firstWaypoint)
+            }
+            newFirstWaypoint = newWaypointElement(newLeg)
+        } else {
+            newFirstWaypoint = firstWaypoint.insertWaypointAfter(waypointElement)
+        }
+        this.firstWaypoint.set(newFirstWaypoint)
+    }
+
+    delete(waypointElement: WaypointElement) {
+        let firstWaypoint: WaypointElement | null = this.firstWaypoint.get();
+        if(firstWaypoint === null) {
+            return
+        }
+        let newFirstWaypoint = firstWaypoint.deleteWaypoint(waypointElement)
+        this.firstWaypoint.set(newFirstWaypoint)
+    }
+}
+
+function newWaypointElement(next: LegElement | null): WaypointElement {
+    return new WaypointElement(next, new Value("New Waypoint"))
+}
+
+function newLegElement(next: WaypointElement): LegElement {
+    return new LegElement(next)
+}
+
 class WaypointElement {
-    name: Value<string>
     altitude: Value<number | null>
 
-    leg: LegElement
+    constructor(
+        public readonly next: LegElement | null,
+        public readonly name: Value<string>) {
+    }
 
-    constructor(name: string, leg: LegElement) {
-        this.name = new Value(name)
-        this.leg = leg
+    insertWaypointAfter(waypointElement: WaypointElement): WaypointElement {
+        let newLeg: LegElement
+        if(waypointElement === this) {
+            let newWaypoint = newWaypointElement(this.next)
+            newLeg = newLegElement(newWaypoint);
+        } else {
+            newLeg = this.next.insertWaypointAfter(waypointElement);
+        }
+        return new WaypointElement(newLeg, this.name)
+    }
+
+    deleteWaypoint(waypointElement: WaypointElement): WaypointElement {
+        if(waypointElement === this) {
+            if(this.next === null) {
+                return null
+            } else {
+                return this.next.next
+            }
+        } else {
+            if(this.next === null) {
+                return this
+            } else {
+                let newLeg = this.next.deleteWaypoint(waypointElement)
+                return new WaypointElement(newLeg, this.name)
+            }
+        }
     }
 }
 
@@ -247,6 +323,27 @@ class LegElement {
     trueTrack: Value<number | null>
     distance: Value<number | null>
     altitude: Value<number | null>
+
+    constructor(
+        public readonly next: WaypointElement
+    ) {
+    }
+
+    insertWaypointAfter(waypointElement: WaypointElement): LegElement {
+        let newWaypoint = this.next.insertWaypointAfter(waypointElement);
+        return new LegElement(newWaypoint);
+    }
+
+    deleteWaypoint(waypointElement: WaypointElement): LegElement {
+        let newNext = this.next.deleteWaypoint(waypointElement);
+        if(newNext != this.next) {
+            if(newNext === null) {
+                return null
+            } else {
+                return new LegElement(newNext)
+            }
+        }
+    }
 }
 
 /*
@@ -305,34 +402,107 @@ class LegElement {
 
  */
 
+
 function trip(tripPage: TripPage) {
-    let stops = map(tripPage.stops, (stopElem) => {
-        return arr(stopElem.flatMap((se: StopElement) => {
-            let waypoints = map(se.waypoints, (waypoints) => {
-                return arr(waypoints.flatMap((we: WaypointElement) => {
-                    return [
-                        button(text("Insert Waypoint"), onklick(() => { se.insertWaypoint(we) })),
-                        div(textInput(value(we.name)))
-                    ]
-                }))
-            })
-            return [
-                button(text("Insert Stop"), onklick(() => { tripPage.insertStop(se) })),
-                div(textInput(value(se.name))),
-                div(sub(waypoints)),
-                button(text("Add Waypoint"), onklick(() => se.addWaypoint()))
-            ]
-        }))
-    })
     return arr([
         h1(text("Trip")),
         button(text("Save"), onklick(() => tripPage.save())),
         text("Name:"),
         textInput(value(tripPage.name)),
         h1(text("Plan")),
-        div(sub(stops)),
-        button(text("Add Stop"), onklick(() => tripPage.addStop()))
+        div(sub(map(tripPage.firstStop, fs => arr(firstStopElement(tripPage, fs)))))
     ])
+}
+
+function firstStopElement(tripPage: TripPage, stopElement: StopElement | null) {
+    if(stopElement === null) {
+        return [
+            div(button(text("Insert Stop"), onklick(() => tripPage.insertStopAfter(null))))
+        ]
+    } else {
+        return [
+            button(text("Insert Stop"), onklick(() => { tripPage.insertStopAfter(null) })),
+            ...renderStopElement(tripPage, stopElement)
+        ]
+    }
+}
+
+function renderStopElement(
+    tripPage: TripPage,
+    stopElement: StopElement
+): Component[] {
+    return [
+        div(input(value(stopElement.name))),
+        ...renderPostStopElement(tripPage, stopElement)
+    ]
+}
+
+function renderPostStopElement(
+    tripPage: TripPage,
+    stopElement: StopElement
+): Component[] {
+    let flightElement: FlightElement | null = stopElement.next
+
+    if(flightElement === null) {
+        return [
+            div(button(text("Insert Stop"), onklick(() => tripPage.insertStopAfter(stopElement))))
+        ]
+    } else {
+        return [
+            div(sub(map(flightElement.firstWaypoint, fw => arr(firstWaypointOrInsertStop(tripPage, stopElement, flightElement, fw))))),
+            ...renderStopElement(tripPage, flightElement.next)
+        ]
+    }
+}
+
+function firstWaypointOrInsertStop(
+    tripPage: TripPage,
+    previous: StopElement,
+    flightElement: FlightElement,
+    firstWaypoint: WaypointElement | null
+): Component[] {
+    if(firstWaypoint === null) {
+        return [
+            button(text("Insert Waypoint"), onklick(() => { flightElement.insertWaypointAfter(null) })),
+            button(text("Insert Stop"), onklick(() => { tripPage.insertStopAfter(previous) })),
+        ]
+    } else {
+        return [
+            button(text("Insert Waypoint"), onklick(() => { flightElement.insertWaypointAfter(null) })),
+            ...renderWaypointElement(flightElement, firstWaypoint)
+        ]
+    }
+}
+
+function renderWaypointElement(
+    flightElement: FlightElement,
+    waypointElement: WaypointElement
+): Component[] {
+    return [
+        div(input(value(waypointElement.name)), button(text("Delete"), onklick(() => flightElement.delete(waypointElement)))),
+        ...renderPostWaypointElement(flightElement, waypointElement)
+    ]
+}
+
+function renderPostWaypointElement(
+    flightElement: FlightElement,
+    waypointElement: WaypointElement
+): Component[] {
+    let legElement: LegElement | null = waypointElement.next
+
+    if(legElement === null) {
+        return [
+            div(button(text("Insert Waypoint"), onklick(() => flightElement.insertWaypointAfter(waypointElement))))
+        ]
+    } else {
+        return [
+            div(
+                text("Leg"),
+                button(text("Insert Waypoint"), onklick(() => { flightElement.insertWaypointAfter(waypointElement) }))
+            ),
+            ...renderWaypointElement(flightElement, legElement.next)
+        ]
+    }
 }
 
 class ManagePage {
