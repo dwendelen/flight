@@ -192,69 +192,48 @@ class TripPage {
         if(tripPlan == null) {
             this.firstStop = new Value(null)
         } else {
-            let maybeStop = tripPlan.stops
-                .filter(st => {
-                    return tripPlan.flightPlans
-                        .filter(fp => fp.to === st.id)
-                        .length === 0
-                });
-            if(maybeStop.length === 0) {
+            if(tripPlan.stops.length === 0) {
                 this.firstStop = new Value(null)
             } else {
-                let stopId = maybeStop[0].id;
-
-                let mapStop = (id: number): StopElement => {
-                    let stop = tripPlan.stops
-                        .filter(st => st.id === id)[0]
-                    let flight = mapFlight(id)
+                let mapStop = (idx: number): StopElement => {
+                    let stop = tripPlan.stops[idx]
+                    let flight = mapFlight(idx)
                     let aerodrome: Aerodrome = this.entityRepo.getByVersion(stop.aerodrome);
                     return new StopElement(flight, new Value(aerodrome))
                 }
-                let mapFlight = (fromId: number) => {
-                    let maybeFlight = tripPlan.flightPlans
-                        .filter(fl => fl.from === fromId)
-                    if(maybeFlight.length === 0) {
+                let mapFlight = (idx: number) => {
+                    if(idx >= tripPlan.flightPlans.length) {
                         return null
                     } else {
-                        let flight = maybeFlight[0]
-                        let stopElement = mapStop(flight.to)
-                        let maybeWaypoint = flight.waypoints
-                            .filter(wp => {
-                                return flight.legs
-                                    .filter(l => l.to === wp.id)
-                                    .length === 0
-                            })
-                        if(maybeWaypoint.length === 0) {
+                        let flight = tripPlan.flightPlans[idx]
+                        let stopElement = mapStop(idx + 1)
+
+                        if(flight.waypoints.length === 0) {
                             return new FlightElement(stopElement, new Value(null))
                         } else {
-                            let firstId = maybeWaypoint[0].id
-
-                            let mapWaypoint = (id: number): WaypointElement => {
-                                let waypoint = flight.waypoints
-                                    .filter(wp => wp.id === id)[0]
-                                let leg = mapLeg(id)
+                            let mapWaypoint = (idx: number): WaypointElement => {
+                                let waypoint = flight.waypoints[idx]
+                                let leg = mapLeg(idx)
                                 return new WaypointElement(leg, new Value(waypoint.name))
                             }
 
-                            let mapLeg = (fromId: number): LegElement => {
-                                let maybeLeg = flight.legs
-                                    .filter(l => l.from === fromId)
-                                if(maybeLeg.length === 0) {
+                            let mapLeg = (idx: number): LegElement => {
+                                if(idx >= flight.legs.length) {
                                     return null
                                 } else {
-                                    let leg = maybeLeg[0]
-                                    let waypoint = mapWaypoint(leg.to)
+                                    let leg = flight.legs[idx]
+                                    let waypoint = mapWaypoint(idx + 1)
                                     return new LegElement(waypoint)
                                 }
                             }
 
-                            let waypointElement = mapWaypoint(firstId)
+                            let waypointElement = mapWaypoint(0)
                             return new FlightElement(stopElement, new Value(waypointElement))
                         }
                     }
                 }
 
-                this.firstStop = new Value(mapStop(stopId))
+                this.firstStop = new Value(mapStop(0))
             }
         }
     }
@@ -275,44 +254,37 @@ class TripPage {
         } else {
             planEntity = this.tripPlan.entity
         }
+
         let nextVersion = this.entityRepo.nextVersion();
-        let nextId = 0
         let stops: Stop[] = []
         let flightPlans: FlightPlan[] = []
         let visitStop = (stop: StopElement | null) => {
             if(stop !== null) {
                 let aerodrome = stop.aerodrome.get();
                 stops.push({
-                    id: nextId,
                     aerodrome: aerodrome === null ? null : aerodrome.version,
                     refuel: false
                 })
-                nextId++
                 visitFlightPlans(stop.next)
             }
         }
         let visitFlightPlans = (flight: FlightElement | null) => {
             if(flight !== null) {
-                let nextIdFlight = 0
                 let waypoints: Waypoint[] = []
                 let legs: Leg[] = []
 
                 let visitWaypoint = (waypoint: WaypointElement | null) => {
                     if(waypoint !== null) {
                         waypoints.push({
-                            id: nextIdFlight,
                             name: waypoint.name.get(),
                             altitude: null
                         })
-                        nextIdFlight++
                         visitLeg(waypoint.next)
                     }
                 }
                 let visitLeg = (leg: LegElement | null) => {
                     if(leg !== null) {
                         legs.push({
-                            from: nextIdFlight - 1,
-                            to: nextIdFlight,
                             trueTrack: null,
                             distance: null,
                             altitude: null
@@ -323,8 +295,6 @@ class TripPage {
                 visitWaypoint(flight.firstWaypoint.get())
 
                 flightPlans.push({
-                    from: nextId - 1,
-                    to: nextId,
                     waypoints: waypoints,
                     legs: legs
                 })
@@ -856,31 +826,21 @@ interface TripPlan extends VersionedEntity {
 }
 
 interface Stop {
-    id: number
     aerodrome: AerodromeVersion
     refuel: boolean
 }
 
-type StopId = number
-
 interface FlightPlan {
-    from: StopId
-    to: StopId
     waypoints: Waypoint[]
     legs: Leg[]
 }
 
 interface Waypoint {
-    id: number
     name: string
     altitude: number | null
 }
 
-type WaypointId = number
-
 interface Leg  {
-    from: WaypointId
-    to: WaypointId
     trueTrack: number | null
     distance: number | null
     altitude: number | null
