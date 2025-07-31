@@ -11,3 +11,28 @@
 .flightplan {
     margin-left: 20px;
 }
+
+div.flightplan {
+    display: grid;
+    grid-template-columns: 50px 50px 50px 50px 50px 50px 150px;
+}
+
+div.flightplan > div.wind-header {
+    grid-column-start: 3;
+    grid-column-end: 5;
+}
+
+div.flightplan > div.action {
+    grid-column-start: 1;
+    grid-column-end: 8;
+}
+
+div.flightplan > div.waypoint {
+    grid-column-start: 1;
+    grid-column-end: 5;
+}
+
+div.flightplan input {
+    width: 100%;
+    /*border-style: none;*/
+}

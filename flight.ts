@@ -214,7 +214,7 @@ class TripPage {
                             let mapWaypoint = (idx: number): WaypointElement => {
                                 let waypoint = flight.waypoints[idx]
                                 let leg = mapLeg(idx)
-                                return new WaypointElement(leg, new Value(waypoint.name))
+                                return new WaypointElement(leg, new Value(waypoint.name), new Value(null))
                             }
 
                             let mapLeg = (idx: number): LegElement => {
@@ -225,6 +225,7 @@ class TripPage {
                                     let waypoint = mapWaypoint(idx + 1)
                                     return new LegElement(
                                             waypoint,
+                                            new Value(null),
                                             new Value(null),
                                             new Value(null),
                                             new Value(null),
@@ -284,6 +285,7 @@ class TripPage {
                     if(waypoint !== null) {
                         waypoints.push({
                             name: waypoint.name.get(),
+                            type: "simple",
                             altitude: null
                         })
                         visitLeg(waypoint.next)
@@ -477,7 +479,7 @@ class FlightElement {
 }
 
 function newWaypointElement(next: LegElement | null): WaypointElement {
-    return new WaypointElement(next, new Value("New Waypoint"))
+    return new WaypointElement(next, new Value("New Waypoint"), new Value(null))
 }
 
 function newLegElement(next: WaypointElement): LegElement {
@@ -487,16 +489,17 @@ function newLegElement(next: WaypointElement): LegElement {
         new Value(null),
         new Value(null),
         new Value(null),
+        new Value(null),
         new Value(null)
     )
 }
 
 class WaypointElement {
-    altitude: Value<number | null>
-
     constructor(
         public readonly next: LegElement | null,
-        public readonly name: Value<string>) {
+        public readonly name: Value<string>,
+        public readonly altitude: Value<string | null> //TODO number
+    ) {
     }
 
     insertWaypointAfter(waypointElement: WaypointElement): WaypointElement {
@@ -507,7 +510,7 @@ class WaypointElement {
         } else {
             newLeg = this.next.insertWaypointAfter(waypointElement);
         }
-        return new WaypointElement(newLeg, this.name)
+        return new WaypointElement(newLeg, this.name, this.altitude)
     }
 
     deleteWaypoint(waypointElement: WaypointElement): WaypointElement {
@@ -522,7 +525,7 @@ class WaypointElement {
                 return this
             } else {
                 let newLeg = this.next.deleteWaypoint(waypointElement)
-                return new WaypointElement(newLeg, this.name)
+                return new WaypointElement(newLeg, this.name, this.altitude)
             }
         }
     }
@@ -533,9 +536,10 @@ class LegElement {
         public readonly next: WaypointElement,
         public readonly trueTrack: Value<string | null>, // TODO number
         public readonly distance: Value<string | null>, // TODO number
-        public readonly altitude: Value<string | null>, // TODO number
         public readonly windDirection: Value<string | null>, // TODO number
-        public readonly windVelocity: Value<string | null> // TODO number
+        public readonly windVelocity: Value<string | null>, // TODO number
+        public readonly altitude: Value<string | null>, // TODO number
+        public readonly msa: Value<string | null>, // TODO number
     ) {
     }
 
@@ -560,9 +564,10 @@ class LegElement {
             next,
             this.trueTrack,
             this.distance,
-            this.altitude,
             this.windDirection,
-            this.windVelocity
+            this.windVelocity,
+            this.altitude,
+            this.msa,
         )
     }
 }
@@ -633,13 +638,20 @@ function firstWaypointOrInsertStop(
     firstWaypoint: WaypointElement | null
 ): Component[] {
     if(firstWaypoint === null) {
-        return [
+        return [div(
+            clazz("action"),
             button(text("Insert Waypoint"), onklick(() => { tripPage.insertWaypointAfter(flightElement, null) })),
             button(text("Insert Stop"), onklick(() => { tripPage.insertStopAfter(previous) })),
-        ]
+        )]
     } else {
         return [
-            button(text("Insert Waypoint"), onklick(() => { tripPage.insertWaypointAfter(flightElement, null) })),
+            div(text("TT")),
+            div(text("Dist")),
+            div(clazz("wind-header"), text("Wind")),
+            div(text("Alt")),
+            div(text("MSA")),
+            div(),
+            div(clazz("action"), button(text("Insert Waypoint"), onklick(() => { tripPage.insertWaypointAfter(flightElement, null) }))),
             ...renderWaypointElement(tripPage, flightElement, firstWaypoint)
         ]
     }
@@ -651,7 +663,10 @@ function renderWaypointElement(
     waypointElement: WaypointElement
 ): Component[] {
     return [
-        div(input(value(waypointElement.name)), button(text("Delete"), onklick(() => tripPage.deleteWaypoint(flightElement, waypointElement)))),
+        div(clazz("waypoint"), textInput(value(waypointElement.name))),
+        div(input()),
+        div(),
+        div(button(text("Delete"), onklick(() => tripPage.deleteWaypoint(flightElement, waypointElement)))),
         ...renderPostWaypointElement(tripPage, flightElement, waypointElement)
     ]
 }
@@ -665,18 +680,17 @@ function renderPostWaypointElement(
 
     if(legElement === null) {
         return [
-            div(button(text("Insert Waypoint"), onklick(() => tripPage.insertWaypointAfter(flightElement, waypointElement))))
+            div(clazz("action"), button(text("Insert Waypoint"), onklick(() => tripPage.insertWaypointAfter(flightElement, waypointElement))))
         ]
     } else {
         return [
-            div(
-                input(value(legElement.trueTrack)),
-                input(value(legElement.distance)),
-                input(value(legElement.altitude)),
-                input(value(legElement.windDirection)),
-                input(value(legElement.windVelocity)),
-                button(text("Insert Waypoint"), onklick(() => { tripPage.insertWaypointAfter(flightElement, waypointElement) }))
-            ),
+            div(input(value(legElement.trueTrack))),
+            div(input(value(legElement.distance))),
+            div(input(value(legElement.windDirection))),
+            div(input(value(legElement.windVelocity))),
+            div(input(value(legElement.altitude))),
+            div(input(value(legElement.altitude))),
+            div(button(text("Insert Waypoint"), onklick(() => { tripPage.insertWaypointAfter(flightElement, waypointElement) }))),
             ...renderWaypointElement(tripPage, flightElement, legElement.next)
         ]
     }
@@ -705,7 +719,7 @@ function aerodromeInput(
         text.set(val === null? "" : val.code)
     }
 
-    return input(value(text), onBlur(doOnBlur))
+    return textInput(value(text), onBlur(doOnBlur))
 }
 
 class ManagePage {
@@ -947,8 +961,15 @@ interface FlightPlan {
     legs: Leg[]
 }
 
+type WaypointType =
+    "take-off" |
+    "simple" |
+    "rate-one" |
+    "landing"
+
 interface Waypoint {
     name: string
+    type: WaypointType
     altitude: number | null
 }
 
@@ -1116,15 +1137,6 @@ function value(val: Value<string>): Component {
             sub()
             elem.onchange = null
         }
-    }
-}
-
-function valueIn(val: View<string>): Component {
-    return (elem: HTMLInputElement) => {
-        elem.value = val.get()
-        return val.subscribe((s) => {
-            elem.value = s
-        })
     }
 }
 
