@@ -498,7 +498,7 @@ class WaypointElement {
     constructor(
         public readonly next: LegElement | null,
         public readonly name: Value<string>,
-        public readonly altitude: Value<string | null> //TODO number
+        public readonly altitude: Value<number | null> //TODO number
     ) {
     }
 
@@ -534,12 +534,12 @@ class WaypointElement {
 class LegElement {
     constructor(
         public readonly next: WaypointElement,
-        public readonly trueTrack: Value<string | null>, // TODO number
-        public readonly distance: Value<string | null>, // TODO number
-        public readonly windDirection: Value<string | null>, // TODO number
-        public readonly windVelocity: Value<string | null>, // TODO number
-        public readonly altitude: Value<string | null>, // TODO number
-        public readonly msa: Value<string | null>, // TODO number
+        public readonly trueTrack: Value<number | null>, // TODO number
+        public readonly distance: Value<number | null>, // TODO number
+        public readonly windDirection: Value<number | null>, // TODO number
+        public readonly windVelocity: Value<number | null>, // TODO number
+        public readonly altitude: Value<number | null>, // TODO number
+        public readonly msa: Value<number | null>, // TODO number
     ) {
     }
 
@@ -625,7 +625,7 @@ function renderPostStopElement(
         ]
     } else {
         return [
-            div(clazz("flightplan"), ...firstWaypointOrInsertStop(tripPage, stopElement, flightElement, flightElement.firstWaypoint)),
+            firstWaypointOrInsertStop(tripPage, stopElement, flightElement, flightElement.firstWaypoint),
             ...renderStopElement(tripPage, flightElement.firstWaypoint === null, flightElement.next)
         ]
     }
@@ -636,15 +636,15 @@ function firstWaypointOrInsertStop(
     previous: StopElement,
     flightElement: FlightElement,
     firstWaypoint: WaypointElement | null
-): Component[] {
+): Component {
     if(firstWaypoint === null) {
-        return [div(
+        return div(
             clazz("action"),
-            button(text("Insert Waypoint"), onklick(() => { tripPage.insertWaypointAfter(flightElement, null) })),
             button(text("Insert Stop"), onklick(() => { tripPage.insertStopAfter(previous) })),
-        ), div(clazz("wp-action"))]
+            button(text("Insert Flightplan"), onklick(() => { tripPage.insertWaypointAfter(flightElement, null) })),
+        )
     } else {
-        return [
+        return div(clazz("flightplan"),
             div(clazz("tt-header"), text("TT")),
             div(clazz("dist-header"), text("Dist")),
             div(clazz("wind-header"), text("Wind")),
@@ -653,7 +653,7 @@ function firstWaypointOrInsertStop(
             div(clazz("action-header")),
             div(clazz("action"), button(text("Insert Waypoint"), onklick(() => { tripPage.insertWaypointAfter(flightElement, null) }))),
             ...renderWaypointElement(tripPage, flightElement, firstWaypoint)
-        ]
+        )
     }
 }
 
@@ -664,7 +664,7 @@ function renderWaypointElement(
 ): Component[] {
     return [
         div(clazz("wp-name"), textInput(value(waypointElement.name))),
-        div(clazz("wp-alt"), textInput()),
+        div(clazz("wp-alt"), numberInput(waypointElement.altitude)),
         div(clazz("wp-msa")),
         div(clazz("wp-action"), button(text("Delete"), onklick(() => tripPage.deleteWaypoint(flightElement, waypointElement)))),
         ...renderPostWaypointElement(tripPage, flightElement, waypointElement)
@@ -684,12 +684,12 @@ function renderPostWaypointElement(
         ]
     } else {
         return [
-            div(clazz("leg-tt"), textInput(value(legElement.trueTrack))),
-            div(clazz("leg-dist"), textInput(value(legElement.distance))),
-            div(clazz("leg-wind-dir"), textInput(value(legElement.windDirection))),
-            div(clazz("leg-wind-vel"), textInput(value(legElement.windVelocity))),
-            div(clazz("leg-alt"), textInput(value(legElement.altitude))),
-            div(clazz("leg-msa"), textInput(value(legElement.msa))),
+            div(clazz("leg-tt"), numberInput(legElement.trueTrack, 0, 360)),
+            div(clazz("leg-dist"), numberInput(legElement.distance, 0)),
+            div(clazz("leg-wind-dir"), numberInput(legElement.windDirection, 0, 360)),
+            div(clazz("leg-wind-vel"), numberInput(legElement.windVelocity, 0)),
+            div(clazz("leg-alt"), numberInput(legElement.altitude)),
+            div(clazz("leg-msa"), numberInput(legElement.msa)),
             div(clazz("leg-action"), button(text("Insert Waypoint"), onklick(() => { tripPage.insertWaypointAfter(flightElement, waypointElement) }))),
             ...renderWaypointElement(tripPage, flightElement, legElement.next)
         ]
@@ -700,26 +700,28 @@ function aerodromeInput(
     aerodromes: Aerodrome[],
     aerodrome: Value<Aerodrome | null>
 ): Component {
-    let val = aerodrome.get()
-    let text = new Value(val === null? "" : val.code)
+    return factory(() => {
+        let val = aerodrome.get()
+        let text = new Value(val === null? "" : val.code)
 
-    let doOnBlur = () => {
-        let txt = text.get();
-        if(txt === "") {
-            aerodrome.set(null)
-        } else {
-            let maybeAerodrome = aerodromes
-                .filter(a => a.code.toLowerCase() === txt.toLowerCase())
-            if (maybeAerodrome.length > 0) {
-                let newAero = maybeAerodrome[0];
-                aerodrome.set(newAero)
+        let doOnBlur = () => {
+            let txt = text.get();
+            if(txt === "") {
+                aerodrome.set(null)
+            } else {
+                let maybeAerodrome = aerodromes
+                    .filter(a => a.code.toLowerCase() === txt.toLowerCase())
+                if (maybeAerodrome.length > 0) {
+                    let newAero = maybeAerodrome[0];
+                    aerodrome.set(newAero)
+                }
             }
+            let val = aerodrome.get();
+            text.set(val === null? "" : val.code)
         }
-        let val = aerodrome.get();
-        text.set(val === null? "" : val.code)
-    }
 
-    return textInput(value(text), onBlur(doOnBlur))
+        return textInput(value(text), onBlur(doOnBlur))
+    })
 }
 
 class ManagePage {
@@ -1047,8 +1049,38 @@ function arr(components: Component[]): Component {
     }
 }
 
+function factory(fn: () => Component): Component {
+    return (elem) => {
+        let comp = fn()
+        return comp(elem)
+    }
+}
+
 function textInput(...mods: Component[]): Component {
     return input(type("text"), ...mods)
+}
+
+function numberInput(val: Value<number | null>, min: number | null = null, max: number | null = null): Component {
+    return factory(() => {
+        let v = val.get()
+        let text = new Value(v === null? "" : v.toString())
+
+        let doOnBlur = () => {
+            let txt = text.get();
+            if(txt === "") {
+                val.set(null)
+            } else {
+                let num = Number.parseFloat(txt);
+                if(!isNaN(num) && !(min != null && num < min) && !(max != null && num > max)) {
+                    val.set(num)
+                }
+            }
+            let v = val.get();
+            text.set(v === null? "" : v.toString())
+        }
+
+        return textInput(value(text), onBlur(doOnBlur))
+    })
 }
 
 // HTML
