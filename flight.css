@@ -12,24 +12,100 @@
     margin-left: 20px;
 }
 
+div.flightplan div {
+    border-style: solid;
+}
+
 div.flightplan {
     display: grid;
     grid-template-columns: 50px 50px 50px 50px 50px 50px 150px;
 }
 
+div.flightplan input {
+    border-style: none;
+    outline: none;
+}
+
+div.flightplan > div.tt-header {
+    border-width: 2px 1px 2px 2px;
+}
+
+div.flightplan > div.dist-header {
+    border-width: 2px 2px 2px 0;
+}
+
 div.flightplan > div.wind-header {
     grid-column-start: 3;
     grid-column-end: 5;
+    border-width: 2px 2px 2px 0;
+}
+
+div.flightplan > div.alt-header {
+    border-width: 2px 1px 2px 0;
+}
+
+div.flightplan > div.msa-header {
+    border-width: 2px 2px 2px 0;
+}
+
+div.flightplan > div.action-header {
+    border-style: none;
 }
 
 div.flightplan > div.action {
     grid-column-start: 1;
-    grid-column-end: 8;
+    grid-column-end: 7;
+    border-width: 0 2px 1px 2px;
 }
 
-div.flightplan > div.waypoint {
+div.flightplan > div.wp-name {
     grid-column-start: 1;
     grid-column-end: 5;
+    border-width: 0 2px 1px 2px;
+}
+
+div.flightplan > div.wp-alt {
+    border-width: 0 1px 1px 0;
+}
+
+div.flightplan > div.wp-msa {
+    border-width: 0 2px 1px 0;
+}
+
+div.flightplan > div.wp-action {
+    border-style: none;
+}
+
+div.flightplan > div.leg-tt {
+    border-width: 0 1px 1px 2px;
+}
+
+div.flightplan > div.leg-dist {
+    border-width: 0 2px 1px 0;
+}
+
+div.flightplan > div.leg-wind-dir {
+    border-width: 0 1px 1px 0;
+}
+
+div.flightplan > div.leg-wind-vel {
+    border-width: 0 2px 1px 0;
+}
+
+div.flightplan > div.leg-alt {
+    border-width: 0 1px 1px 0;
+}
+
+div.flightplan > div.leg-msa {
+    border-width: 0 2px 1px 0;
+}
+
+div.flightplan > div.leg-action {
+    border-style: none;
+}
+
+div.flightplan > div.last {
+    border-bottom-width: 2px;
 }
 
 div.flightplan input {

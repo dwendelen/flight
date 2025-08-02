@@ -642,15 +642,15 @@ function firstWaypointOrInsertStop(
             clazz("action"),
             button(text("Insert Waypoint"), onklick(() => { tripPage.insertWaypointAfter(flightElement, null) })),
             button(text("Insert Stop"), onklick(() => { tripPage.insertStopAfter(previous) })),
-        )]
+        ), div(clazz("wp-action"))]
     } else {
         return [
-            div(text("TT")),
-            div(text("Dist")),
+            div(clazz("tt-header"), text("TT")),
+            div(clazz("dist-header"), text("Dist")),
             div(clazz("wind-header"), text("Wind")),
-            div(text("Alt")),
-            div(text("MSA")),
-            div(),
+            div(clazz("alt-header"), text("Alt")),
+            div(clazz("msa-header"), text("MSA")),
+            div(clazz("action-header")),
             div(clazz("action"), button(text("Insert Waypoint"), onklick(() => { tripPage.insertWaypointAfter(flightElement, null) }))),
             ...renderWaypointElement(tripPage, flightElement, firstWaypoint)
         ]
@@ -663,10 +663,10 @@ function renderWaypointElement(
     waypointElement: WaypointElement
 ): Component[] {
     return [
-        div(clazz("waypoint"), textInput(value(waypointElement.name))),
-        div(input()),
-        div(),
-        div(button(text("Delete"), onklick(() => tripPage.deleteWaypoint(flightElement, waypointElement)))),
+        div(clazz("wp-name"), textInput(value(waypointElement.name))),
+        div(clazz("wp-alt"), textInput()),
+        div(clazz("wp-msa")),
+        div(clazz("wp-action"), button(text("Delete"), onklick(() => tripPage.deleteWaypoint(flightElement, waypointElement)))),
         ...renderPostWaypointElement(tripPage, flightElement, waypointElement)
     ]
 }
@@ -680,17 +680,17 @@ function renderPostWaypointElement(
 
     if(legElement === null) {
         return [
-            div(clazz("action"), button(text("Insert Waypoint"), onklick(() => tripPage.insertWaypointAfter(flightElement, waypointElement))))
+            div(clazz("action"), clazz("last"), button(text("Insert Waypoint"), onklick(() => tripPage.insertWaypointAfter(flightElement, waypointElement))))
         ]
     } else {
         return [
-            div(input(value(legElement.trueTrack))),
-            div(input(value(legElement.distance))),
-            div(input(value(legElement.windDirection))),
-            div(input(value(legElement.windVelocity))),
-            div(input(value(legElement.altitude))),
-            div(input(value(legElement.altitude))),
-            div(button(text("Insert Waypoint"), onklick(() => { tripPage.insertWaypointAfter(flightElement, waypointElement) }))),
+            div(clazz("leg-tt"), textInput(value(legElement.trueTrack))),
+            div(clazz("leg-dist"), textInput(value(legElement.distance))),
+            div(clazz("leg-wind-dir"), textInput(value(legElement.windDirection))),
+            div(clazz("leg-wind-vel"), textInput(value(legElement.windVelocity))),
+            div(clazz("leg-alt"), textInput(value(legElement.altitude))),
+            div(clazz("leg-msa"), textInput(value(legElement.msa))),
+            div(clazz("leg-action"), button(text("Insert Waypoint"), onklick(() => { tripPage.insertWaypointAfter(flightElement, waypointElement) }))),
             ...renderWaypointElement(tripPage, flightElement, legElement.next)
         ]
     }
