@@ -214,7 +214,7 @@ class TripPage {
                             let mapWaypoint = (idx: number): WaypointElement => {
                                 let waypoint = flight.waypoints[idx]
                                 let leg = mapLeg(idx)
-                                return new WaypointElement(leg, new Value(waypoint.name), new Value(null))
+                                return new WaypointElement(leg, new Value(waypoint.name), new Value(waypoint.altitude))
                             }
 
                             let mapLeg = (idx: number): LegElement => {
@@ -225,12 +225,12 @@ class TripPage {
                                     let waypoint = mapWaypoint(idx + 1)
                                     return new LegElement(
                                             waypoint,
-                                            new Value(null),
-                                            new Value(null),
-                                            new Value(null),
-                                            new Value(null),
-                                            new Value(null),
-                                            new Value(null)
+                                            new Value(leg.trueTrack),
+                                            new Value(leg.distance),
+                                            new Value(leg.windDirection),
+                                            new Value(leg.windVelocity),
+                                            new Value(leg.altitude),
+                                            new Value(leg.msa)
                                         )
                                 }
                             }
@@ -286,7 +286,7 @@ class TripPage {
                         waypoints.push({
                             name: waypoint.name.get(),
                             type: "simple",
-                            altitude: null
+                            altitude: waypoint.altitude.get()
                         })
                         visitLeg(waypoint.next)
                     }
@@ -294,9 +294,12 @@ class TripPage {
                 let visitLeg = (leg: LegElement | null) => {
                     if(leg !== null) {
                         legs.push({
-                            trueTrack: null,
-                            distance: null,
-                            altitude: null
+                            trueTrack: leg.trueTrack.get(),
+                            distance: leg.distance.get(),
+                            windDirection: leg.windDirection.get(),
+                            windVelocity: leg.windVelocity.get(),
+                            altitude: leg.distance.get(),
+                            msa: leg.msa.get()
                         })
                         visitWaypoint(leg.next)
                     }
@@ -916,6 +919,28 @@ interface Aircraft extends VersionedEntity {
 
 type AircraftId = number
 
+// interface AircraftPerformance extends VersionedEntity {
+//     type: "performance"
+//     aircraft: AircraftId
+//     powerSettings: WeightPowerSetting[]
+// }
+//
+// interface WeightPowerSetting {
+//     weight: number
+//     pressureAltitudes: PressureAltitudePowerSettings[]
+// }
+//
+// interface PressureAltitudePowerSettings {
+//     pressureAltitude: number
+//     powerSettings: PowerSetting[]
+// }
+//
+// interface PowerSetting {
+//     powerSetting: number
+//     ias: number
+//     fuelFlow: number
+// }
+
 const aerodrome = new EntityDescription<Aerodrome>(
     "Aerodrome",
     "aerodrome",
@@ -978,7 +1003,10 @@ interface Waypoint {
 interface Leg  {
     trueTrack: number | null
     distance: number | null
+    windDirection: number | null
+    windVelocity: number | null
     altitude: number | null
+    msa: number | null
 }
 
 interface Tombstone extends VersionedEntity {
