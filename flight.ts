@@ -180,6 +180,7 @@ class TripPage {
     powerSetting: Value<string | null>
     ias: Value<number | null>
     tas: Value<number | null>
+    fuelFlow: Value<number | null>
     firstStop: Value<StopElement | null>
     aerodromes: Aerodrome[]
 
@@ -252,6 +253,7 @@ class TripPage {
             this.powerSetting = new Value(tripPlan.powerSetting)
             this.ias = new Value(tripPlan.ias)
             this.tas = new Value(tripPlan.tas)
+            this.fuelFlow = new Value(tripPlan.fuelFlow)
         }
     }
 
@@ -273,10 +275,27 @@ class TripPage {
         }
 
         let nextVersion = this.entityRepo.nextVersion();
+        let tripVersion = nextVersion;
+        let trip: Trip = {
+            type: "trip",
+            entity: tripEntity,
+            version: tripVersion,
+            name: this.name.get(),
+            aircraft: null
+        };
+
+        let tripPlanVersion = nextVersion + 1;
+        let tripPlan = this.toTripPlan(tripPlanVersion, planEntity, tripEntity);
+
+        this.entityRepo.save([trip, tripPlan])
+        this.tripsPage.openHome()
+    }
+
+    private toTripPlan(tripPlanVersion: number, planEntity: number, tripEntity: number): TripPlan {
         let stops: Stop[] = []
         let flightPlans: FlightPlan[] = []
         let visitStop = (stop: StopElement | null) => {
-            if(stop !== null) {
+            if (stop !== null) {
                 let aerodrome = stop.aerodrome.get();
                 stops.push({
                     aerodrome: aerodrome === null ? null : aerodrome.version,
@@ -286,12 +305,12 @@ class TripPage {
             }
         }
         let visitFlightPlans = (flight: FlightElement | null) => {
-            if(flight !== null) {
+            if (flight !== null) {
                 let waypoints: Waypoint[] = []
                 let legs: Leg[] = []
 
                 let visitWaypoint = (waypoint: WaypointElement | null) => {
-                    if(waypoint !== null) {
+                    if (waypoint !== null) {
                         waypoints.push({
                             name: waypoint.name.get(),
                             type: "simple",
@@ -301,7 +320,7 @@ class TripPage {
                     }
                 }
                 let visitLeg = (leg: LegElement | null) => {
-                    if(leg !== null) {
+                    if (leg !== null) {
                         legs.push({
                             trueTrack: leg.trueTrack.get(),
                             distance: leg.distance.get(),
@@ -323,23 +342,20 @@ class TripPage {
             }
         }
         visitStop(this.firstStop.get())
-        this.entityRepo.save([{
-            type: "trip",
-            entity: tripEntity,
-            version: nextVersion,
-            name: this.name.get()
-        } as Trip, {
+
+        return {
+            variation: null, // TODO
             type: "plan",
             entity: planEntity,
-            version: nextVersion + 1,
+            version: tripPlanVersion,
             trip: tripEntity,
             stops: stops,
             flightPlans: flightPlans,
             powerSetting: this.powerSetting.get(),
             ias: this.ias.get(),
             tas: this.tas.get(),
-        } as TripPlan])
-        this.tripsPage.openHome()
+            fuelFlow: this.fuelFlow.get()
+        };
     }
 
     insertStopAfter(stopElement: StopElement | null) {
@@ -375,6 +391,11 @@ class TripPage {
         let firstStop: StopElement | null = this.firstStop.get()
         let newFirstStop = firstStop!.deleteWaypoint(flightElement, waypointElement)
         this.firstStop.set(newFirstStop)
+    }
+
+    calculate() {
+        let tripPlan = this.toTripPlan(-1, -1, -1)
+        let calculated = calculate(tripPlan)
     }
 }
 
@@ -599,11 +620,14 @@ function trip(tripPage: TripPage) {
             div(text("Pwr")),
             div(text("IAS")),
             div(text("TAS")),
+            div(text("Fuel")),
             div(textInput(value(tripPage.powerSetting))),
             div(numberInput(tripPage.ias)),
             div(numberInput(tripPage.tas)),
+            div(numberInput(tripPage.fuelFlow)),
         ),
         div(sub(map(tripPage.firstStop, fs => arr(firstStopElement(tripPage, fs))))),
+        div(clazz("calculate-button"), button(text("Calculate"), onklick(() => tripPage.calculate()))),
     ])
 }
 
@@ -717,6 +741,107 @@ function renderPostWaypointElement(
             div(clazz("leg-action"), button(text("Insert Waypoint"), onklick(() => { tripPage.insertWaypointAfter(flightElement, waypointElement) }))),
             ...renderWaypointElement(tripPage, flightElement, legElement.next)
         ]
+    }
+}
+
+interface CalculatedTrip {
+    powerSetting: string | null
+    ias: number | null
+    plans: CalculatedPlan[]
+}
+
+interface CalculatedPlan {
+    waypoints: CalculatedWaypoint[]
+    legs: CalculatedLeg[]
+}
+
+interface CalculatedWaypoint {
+    name: string
+    alt: number | null
+    fuel: number | null
+    eta: number | null
+}
+
+interface CalculatedLeg {
+    mh: number | null
+    mt: number | null
+    gs: number | null
+    alt: number | null
+    msa: number | null
+    fuel: number | null
+    ete: number | null
+}
+
+const RADIANS_PER_DEGREE = 2 * Math.PI / 360
+const DEGREES_PER_RADIAN = 1 / RADIANS_PER_DEGREE
+
+function calculate(tripPlan: TripPlan): CalculatedTrip {
+    let plans: CalculatedPlan[] = tripPlan.flightPlans.map(fp => {
+        return {
+            waypoints: fp.waypoints.map(wp => {
+                return {
+                    name: wp.name,
+                    alt: wp.altitude,
+                    fuel: null,
+                    eta: null
+                }
+            }),
+            legs: fp.legs.map(leg => {
+                let mt: number | null
+                if(tripPlan.variation != null && leg.trueTrack != null) {
+                    mt = leg.trueTrack - tripPlan.variation;
+                } else {
+                    mt = null
+                }
+                let th: number | null
+                let gs: number | null
+                if(leg.trueTrack != null && tripPlan.tas != null && leg.windDirection != null && leg.windVelocity != null) {
+                    let relative_wind_radians = RADIANS_PER_DEGREE * (leg.windDirection + 180 - leg.trueTrack);
+                    let cross = leg.windVelocity * Math.sin(relative_wind_radians)
+                    let tail = leg.windVelocity * Math.cos(relative_wind_radians)
+                    let drift_radians = Math.asin(cross/tripPlan.tas)
+                    gs = tripPlan.tas * Math.cos(drift_radians) + tail
+                    th = leg.trueTrack - (drift_radians * DEGREES_PER_RADIAN)
+                } else {
+                    gs = null
+                    th = null
+                }
+                let mh: number | null
+                if(tripPlan.variation != null && th != null) {
+                    mh = th - tripPlan.variation
+                } else {
+                    mh = null
+                }
+                let ete: number | null
+                if(gs != null && leg.distance != null) {
+                    ete = leg.distance / gs
+                } else {
+                    ete = null
+                }
+                let fuel: number | null
+                if(ete != null && tripPlan.fuelFlow != null) {
+                    fuel = tripPlan.fuelFlow * ete
+                } else {
+                    fuel = null
+                }
+
+                return {
+                    mh: mh,
+                    mt: mt,
+                    gs: gs,
+                    alt: leg.altitude,
+                    msa: leg.msa,
+                    fuel: fuel,
+                    ete: ete,
+                }
+            })
+        }
+    })
+
+    return {
+        powerSetting: tripPlan.powerSetting,
+        ias: tripPlan.ias,
+        plans: plans,
     }
 }
 
@@ -998,6 +1123,8 @@ interface TripPlan extends VersionedEntity {
     powerSetting: string | null
     ias: number | null
     tas: number | null
+    fuelFlow: number | null
+    variation: number | null // TODO input
     stops: Stop[]
     flightPlans: FlightPlan[]
 }
