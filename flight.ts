@@ -298,7 +298,7 @@ class TripPage {
                             distance: leg.distance.get(),
                             windDirection: leg.windDirection.get(),
                             windVelocity: leg.windVelocity.get(),
-                            altitude: leg.distance.get(),
+                            altitude: leg.altitude.get(),
                             msa: leg.msa.get()
                         })
                         visitWaypoint(leg.next)
