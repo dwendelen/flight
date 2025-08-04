@@ -8,7 +8,28 @@
     grid-template-columns: 150px 300px;
 }
 
-.flightplan {
+div.perfo {
+    display: grid;
+    border: 1px;
+    grid-template-columns: 50px 50px 50px;
+    margin-bottom: 20px;
+}
+
+div.perfo div {
+    border-style: solid;
+    border-width: 1px;
+}
+
+div.perfo input {
+    width: 100%;
+    border-style: none;
+    outline: none;
+}
+
+
+div.flightplan {
+    display: grid;
+    grid-template-columns: 50px 50px 50px 50px 50px 50px 150px;
     margin-left: 20px;
 }
 
@@ -16,12 +37,8 @@ div.flightplan div {
     border-style: solid;
 }
 
-div.flightplan {
-    display: grid;
-    grid-template-columns: 50px 50px 50px 50px 50px 50px 150px;
-}
-
 div.flightplan input {
+    width: 100%;
     border-style: none;
     outline: none;
 }
@@ -106,9 +123,4 @@ div.flightplan > div.leg-action {
 
 div.flightplan > div.last {
     border-bottom-width: 2px;
-}
-
-div.flightplan input {
-    width: 100%;
-    /*border-style: none;*/
 }

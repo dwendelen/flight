@@ -177,6 +177,9 @@ function tripsList(tripsPage: TripsPage): Component {
 
 class TripPage {
     name: Value<string>
+    powerSetting: Value<string | null>
+    ias: Value<number | null>
+    tas: Value<number | null>
     firstStop: Value<StopElement | null>
     aerodromes: Aerodrome[]
 
@@ -191,6 +194,9 @@ class TripPage {
         }
         if(tripPlan == null) {
             this.firstStop = new Value(null)
+            this.powerSetting = new Value(null)
+            this.ias = new Value(null)
+            this.tas = new Value(null)
         } else {
             if(tripPlan.stops.length === 0) {
                 this.firstStop = new Value(null)
@@ -243,6 +249,9 @@ class TripPage {
 
                 this.firstStop = new Value(mapStop(0))
             }
+            this.powerSetting = new Value(tripPlan.powerSetting)
+            this.ias = new Value(tripPlan.ias)
+            this.tas = new Value(tripPlan.tas)
         }
     }
 
@@ -325,7 +334,10 @@ class TripPage {
             version: nextVersion + 1,
             trip: tripEntity,
             stops: stops,
-            flightPlans: flightPlans
+            flightPlans: flightPlans,
+            powerSetting: this.powerSetting.get(),
+            ias: this.ias.get(),
+            tas: this.tas.get(),
         } as TripPlan])
         this.tripsPage.openHome()
     }
@@ -582,7 +594,16 @@ function trip(tripPage: TripPage) {
         text("Name:"),
         textInput(value(tripPage.name)),
         h1(text("Plan")),
-        div(sub(map(tripPage.firstStop, fs => arr(firstStopElement(tripPage, fs)))))
+        div(
+            clazz("perfo"),
+            div(text("Pwr")),
+            div(text("IAS")),
+            div(text("TAS")),
+            div(textInput(value(tripPage.powerSetting))),
+            div(numberInput(tripPage.ias)),
+            div(numberInput(tripPage.tas)),
+        ),
+        div(sub(map(tripPage.firstStop, fs => arr(firstStopElement(tripPage, fs))))),
     ])
 }
 
@@ -974,6 +995,9 @@ interface Flight extends VersionedEntity {
 interface TripPlan extends VersionedEntity {
     type: "plan"
     trip: TripId
+    powerSetting: string | null
+    ias: number | null
+    tas: number | null
     stops: Stop[]
     flightPlans: FlightPlan[]
 }
