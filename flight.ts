@@ -396,7 +396,219 @@ class TripPage {
     calculate() {
         let tripPlan = this.toTripPlan(-1, -1, -1)
         let calculated = calculate(tripPlan)
+        let pages = printTrip(calculated)
+        draw(document.getElementById("test-canvas") as HTMLCanvasElement, pages);
     }
+}
+
+function printTrip(trip: CalculatedTrip): Page[] {
+    let topMargin = 50
+    let leftMargin = 100
+    let gridHeight = 21
+    let gridWidth = 43
+
+    let fontSize = 10 / 3 * 4
+    let fontStartX = 5
+    let fontStartY = 15
+
+    let lightGrey = { r: 217/255, g: 217/255, b: 217/255 }
+    let lightRed = { r: 249/255, g: 203/255, b: 156/255 }
+    let lightGreen = { r: 182/255, g: 215/255, b: 168/255 }
+    let lightYellow = { r: 255/255, g: 229/255, b: 153/255 }
+    let lightBlue = { r: 159/255, g: 197/255, b: 232/255 }
+    let wpColors = [
+        lightRed,
+        lightGreen,
+        lightYellow,
+        lightBlue,
+    ]
+
+    function colorBox(y: number, x: number, h: number, w: number, color: Color): ColorBox {
+        return {
+            type: "colorbox",
+            topLeft: { y: topMargin + y * gridHeight, x: leftMargin + x * gridWidth },
+            size: { height: h * gridHeight, width: w * gridWidth },
+            color: color
+        }
+    }
+
+    function hor(y: number, x: number, w: number, width: number, lOffset: number, rOffset: number): Line {
+        return {
+            type: "line",
+            start: { y: topMargin + y * gridHeight, x: leftMargin + x * gridWidth + lOffset },
+            end: { y: topMargin + y * gridHeight, x: leftMargin + (x + w) * gridWidth + rOffset },
+            lineWidth: width,
+        }
+    }
+
+    function ver(y: number, x: number, h: number, width: number, tOffset: number, bOffset: number): Line {
+        return {
+            type: "line",
+            start: { y: topMargin + y * gridHeight + tOffset, x: leftMargin + x * gridWidth },
+            end: { y: topMargin + (y + h) * gridHeight + bOffset, x: leftMargin + x * gridWidth },
+            lineWidth: width,
+        }
+    }
+
+    function ltext(y: number, x: number, text: string): Txt {
+        return {
+            type: "text",
+            fontSize: fontSize,
+            start: { y: topMargin + y * gridHeight + fontStartY, x: leftMargin + x * gridWidth + fontStartX },
+            text: text,
+            align: "left",
+        }
+    }
+
+    function rtext(y: number, x: number, text: string): Txt {
+        return {
+            type: "text",
+            fontSize: fontSize,
+            start: { y: topMargin + y * gridHeight + fontStartY, x: leftMargin + x * gridWidth + gridWidth - fontStartX },
+            text: text,
+            align: "right",
+        }
+    }
+
+    function formatFuel(num: number | null) {
+        if (num == null) {
+            return ""
+        } else {
+            let str = Math.round(num * 10).toString()
+            return str.substring(0, str.length - 1) + "," + str.substring(str.length - 1)
+        }
+    }
+
+    function formatInt(num: number | null) {
+        if (num == null) {
+            return ""
+        } else {
+            let str = Math.round(num).toString()
+            if (str.length > 3) {
+                return str.substring(0, str.length - 3) + " " + str.substring(str.length - 3)
+            } else {
+                return str
+            }
+        }
+    }
+
+    let plan = trip.plans[0]
+
+    let drawings = []
+    // Top part
+    drawings.push(...[
+        colorBox(0, 0, 1, 1, lightGrey),
+        colorBox(0, 2, 1, 1, lightGrey),
+        hor(0, 0, 4, 2, -1, 1),
+        hor(1, 0, 4, 2, -1, 1),
+        ver(0, 0, 1, 2, -1, 1),
+        ver(0, 1, 1, 1, -1, 1),
+        ver(0, 2, 1, 2, -1, 1),
+        ver(0, 3, 1, 1, -1, 1),
+        ver(0, 4, 1, 2, -1, 1),
+        ltext(0, 0, "Pwr"),
+        ltext(0, 1, trip.powerSetting),
+        ltext(0, 2, "IAS"),
+        rtext(0, 3, formatInt(trip.ias)),
+    ]);
+
+    // First the colors: Header
+    drawings.push(
+        colorBox(2, 0, 1, 8, lightGrey)
+    )
+    // First the colors: Waypoints
+    for (let i = 0; i < plan.waypoints.length; i++) {
+        drawings.push(
+            colorBox(2 * i + 3, 0, 1, 8, wpColors[i % wpColors.length])
+        )
+    }
+
+    // Header
+    drawings.push(...[
+        hor(2, 0, 8, 2, -1, 1),
+        hor(3, 0, 8, 2, -1, 1),
+
+        ver(2, 0, 1, 2, -1, 1),
+        ver(2, 1, 1, 1, -1, 1),
+        ver(2, 2, 1, 2, -1, 1),
+        ver(2, 3, 1, 2, -1, 1),
+        ver(2, 4, 1, 1, -1, 1),
+        ver(2, 5, 1, 2, -1, 1),
+        ver(2, 6, 1, 2, -1, 1),
+        ver(2, 7, 1, 1, -1, 1),
+        ver(2, 8, 1, 2, -1, 1),
+
+        ltext(2, 0, "MH"),
+        ltext(2, 1, "MT"),
+        ltext(2, 2, "GS"),
+        ltext(2, 3, "Alt"),
+        ltext(2, 4, "MSA"),
+        ltext(2, 5, "Fuel"),
+        ltext(2, 6, "ET"),
+        ltext(2, 7, "AT"),
+    ]);
+
+
+    for (let i = 0; i < plan.legs.length; i++) {
+        let waypoint = plan.waypoints[i]
+        let leg = plan.legs[i]
+        drawings.push(...[
+            hor(2 * i + 4, 0, 8, 1, 0, 0),
+            hor(2 * i + 5, 0, 8, 1, 0, 0),
+
+            ver(2 * i + 3, 0, 2, 2, 0, 0),
+            ver(2 * i + 4, 1, 1, 1, 0, 0),
+            ver(2 * i + 4, 2, 1, 2, 0, 0),
+            ver(2 * i + 3, 3, 2, 2, 0, 0),
+            ver(2 * i + 3, 4, 2, 1, 0, 0),
+            ver(2 * i + 3, 5, 2, 2, 0, 0),
+            ver(2 * i + 3, 6, 2, 2, 0, 0),
+            ver(2 * i + 3, 7, 2, 1, 0, 0),
+            ver(2 * i + 3, 8, 2, 2, 0, 0),
+
+            ltext(2 * i + 3, 0, waypoint.name),
+            rtext(2 * i + 3, 3, formatInt(waypoint.alt)),
+            rtext(2 * i + 3, 5, formatFuel(waypoint.fuel)),
+            ltext(2 * i + 3, 6, "ET"),
+            ltext(2 * i + 3, 7, "AT"),
+
+            rtext(2 * i + 4, 0, formatInt(leg.mh)),
+            rtext(2 * i + 4, 1, formatInt(leg.mt)),
+            rtext(2 * i + 4, 2, formatInt(leg.gs)),
+            rtext(2 * i + 4, 3, formatInt(leg.alt)),
+            rtext(2 * i + 4, 4, formatInt(leg.msa)),
+            rtext(2 * i + 4, 5, formatFuel(leg.fuel)),
+            ltext(2 * i + 4, 6, "ET"),
+            ltext(2 * i + 4, 7, "AT"),
+        ])
+    }
+
+    let lastWpIdx = plan.legs.length;
+    let lastWaypoint = plan.waypoints[lastWpIdx]
+    drawings.push(...[
+        hor(2 * lastWpIdx + 4, 0, 8, 2, -1, 1),
+
+        ver(2 * lastWpIdx + 3, 0, 1, 2, 0, 1),
+        ver(2 * lastWpIdx + 3, 3, 1, 2, 0, 0),
+        ver(2 * lastWpIdx + 3, 4, 1, 1, 0, 0),
+        ver(2 * lastWpIdx + 3, 5, 1, 2, 0, 0),
+        ver(2 * lastWpIdx + 3, 6, 1, 2, 0, 0),
+        ver(2 * lastWpIdx + 3, 7, 1, 1, 0, 0),
+        ver(2 * lastWpIdx + 3, 8, 1, 2, 0, 1),
+
+        ltext(2 * lastWpIdx + 3, 0, lastWaypoint.name),
+        rtext(2 * lastWpIdx + 3, 3, formatInt(lastWaypoint.alt)),
+        rtext(2 * lastWpIdx + 3, 5, formatFuel(lastWaypoint.fuel)),
+        ltext(2 * lastWpIdx + 3, 6, "ET"),
+        ltext(2 * lastWpIdx + 3, 7, "AT"),
+    ])
+
+
+    return [{
+        height: -1,
+        width: -1,
+        drawings: drawings
+    }]
 }
 
 class StopElement {
@@ -628,6 +840,7 @@ function trip(tripPage: TripPage) {
         ),
         div(sub(map(tripPage.firstStop, fs => arr(firstStopElement(tripPage, fs))))),
         div(clazz("calculate-button"), button(text("Calculate"), onklick(() => tripPage.calculate()))),
+        div(canvas(id("test-canvas"), width(600), height(600)))
     ])
 }
 
@@ -843,6 +1056,116 @@ function calculate(tripPlan: TripPlan): CalculatedTrip {
         ias: tripPlan.ias,
         plans: plans,
     }
+}
+
+interface Page {
+    height: number,
+    width: number,
+    drawings: Drawing[]
+}
+
+type Drawing = Line | Txt | ColorBox
+
+interface Coordinate {
+    y: number // px
+    x: number // px
+}
+
+interface Size {
+    height: number // px
+    width: number // px
+}
+
+interface Line {
+    type: "line"
+    start: Coordinate
+    end: Coordinate
+    lineWidth: number
+}
+
+interface Txt {
+    type: "text"
+    start: Coordinate
+    fontSize: number // px
+    text: string
+    align: "left" | "right"
+}
+
+interface Color {
+    r: number // 0.0 - 1.0
+    g: number // 0.0 - 1.0
+    b: number
+}
+
+interface ColorBox {
+    type: "colorbox"
+    topLeft: Coordinate
+    size: Size
+    color: Color
+}
+
+function draw(canvas: HTMLCanvasElement, pages: Page[]) {
+    let page = pages[0];
+    let ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    page.drawings.forEach((drawing) => {
+        if(drawing.type === "line") {
+            ctx.beginPath()
+            if(drawing.start.y == drawing.end.y && drawing.lineWidth % 2 == 1) {
+                // Horizontal line
+                ctx.moveTo(drawing.start.x, drawing.start.y + 0.5)
+                ctx.lineTo(drawing.end.x, drawing.end.y + 0.5)
+            } else if (drawing.start.x == drawing.end.x && drawing.lineWidth % 2 == 1) {
+                // Vertical line
+                ctx.moveTo(drawing.start.x + 0.5, drawing.start.y)
+                ctx.lineTo(drawing.end.x + 0.5, drawing.end.y)
+            } else {
+                ctx.moveTo(drawing.start.x, drawing.start.y)
+                ctx.lineTo(drawing.end.x, drawing.end.y)
+            }
+            ctx.lineWidth = drawing.lineWidth
+            ctx.stroke()
+        } else if(drawing.type === "text") {
+            ctx.beginPath()
+            ctx.font = "normal " + drawing.fontSize + "px Arial"
+            if(drawing.align == "left") {
+                ctx.textAlign = "left"
+            } else if(drawing.align == "right") {
+                ctx.textAlign = "right"
+            } else {
+                throw "Unknown align"
+            }
+            ctx.fillText(drawing.text, drawing.start.x, drawing.start.y)
+        } else if(drawing.type === "colorbox") {
+            ctx.beginPath()
+            ctx.fillStyle = colorToString(drawing.color)
+            ctx.fillRect(drawing.topLeft.x, drawing.topLeft.y, drawing.size.width, drawing.size.height)
+            ctx.fillStyle = "black"
+        } else {
+            throw "Unknown type"
+        }
+    })
+}
+
+function colorToString(color: Color): string {
+    return "#" +
+        componentToString(color.r) +
+        componentToString(color.g) +
+        componentToString(color.b)
+}
+
+function componentToString(comp: number) {
+    let num = Math.round(comp * 255)
+    if(num < 0) {
+        num = 0
+    } else if(num > 255) {
+        num = 255
+    }
+    let str = num.toString(16)
+    if(str.length < 2) {
+        str = "0" + str
+    }
+    return str
 }
 
 function aerodromeInput(
@@ -1286,6 +1609,10 @@ function type(type: string): Component {
     }
 }
 
+function canvas(...mods: Component[]): Component {
+    return tag("canvas", ...mods)
+}
+
 function tag(tag: string, ...mods: Component[]): Component {
     return (elem) => {
         let div = document.createElement(tag);
@@ -1296,6 +1623,13 @@ function tag(tag: string, ...mods: Component[]): Component {
             subs.forEach(s => s())
             div.remove()
         }
+    }
+}
+
+function id(id: string): Component {
+    return (elem) => {
+        elem.id = id
+        return () => elem.id = ""
     }
 }
 
@@ -1332,6 +1666,20 @@ function onklick(fn: () => void): Component {
         return () => {
             elem.onclick = null
         }
+    }
+}
+
+function width(width: number): Component {
+    return (elem: HTMLCanvasElement) => {
+        elem.width = width
+        return () => {}
+    }
+}
+
+function height(height: number): Component {
+    return (elem: HTMLCanvasElement) => {
+        elem.height = height
+        return () => {}
     }
 }
 
