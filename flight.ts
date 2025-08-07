@@ -402,10 +402,15 @@ class TripPage {
 }
 
 function printTrip(trip: CalculatedTrip): Page[] {
-    let topMargin = 50
-    let leftMargin = 100
+    // 96 pixels per inch
+    let a5_height = 21 / 2.54 * 96;
+    let a5_width = 14.8 / 2.54 * 96;
+
     let gridHeight = 21
-    let gridWidth = 43
+    let gridWidth = 42
+
+    let topMargin = 50
+    let leftMargin = Math.floor((a5_width - 8.5 * gridWidth) / 2)
 
     let fontSize = 10 / 3 * 4
     let fontStartX = 5
