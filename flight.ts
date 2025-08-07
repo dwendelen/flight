@@ -480,6 +480,9 @@ function printTrip(trip: CalculatedTrip): Page[] {
             return ""
         } else {
             let str = Math.round(num * 10).toString()
+            if(str.length < 2) {
+                str = "0" + str
+            }
             return str.substring(0, str.length - 1) + "," + str.substring(str.length - 1)
         }
     }
@@ -497,123 +500,150 @@ function printTrip(trip: CalculatedTrip): Page[] {
         }
     }
 
-    let plan = trip.plans[0]
+    function formatTime(hours: number | null) {
+        if (hours == null) {
+            return ""
+        } else {
+            let h = Math.floor(hours)
+            let m = Math.round((hours - h) * 60)
 
-    let drawings = []
-    // Top part
-    drawings.push(...[
-        colorBox(0, 0, 1, 1, lightGrey),
-        colorBox(0, 2, 1, 1, lightGrey),
-        hor(0, 0, 4, 2, -1, 1),
-        hor(1, 0, 4, 2, -1, 1),
-        ver(0, 0, 1, 2, -1, 1),
-        ver(0, 1, 1, 1, -1, 1),
-        ver(0, 2, 1, 2, -1, 1),
-        ver(0, 3, 1, 1, -1, 1),
-        ver(0, 4, 1, 2, -1, 1),
-        ltext(0, 0, "Pwr"),
-        ltext(0, 1, trip.powerSetting),
-        ltext(0, 2, "IAS"),
-        rtext(0, 3, formatInt(trip.ias)),
-    ]);
+            let hh = h < 10 ? '0' + h : h
+            let mm = m < 10 ? '0' + m : m
 
-    // First the colors: Header
-    drawings.push(
-        colorBox(2, 0, 1, 8, lightGrey)
-    )
-    // First the colors: Waypoints
-    for (let i = 0; i < plan.waypoints.length; i++) {
-        drawings.push(
-            colorBox(2 * i + 3, 0, 1, 8, wpColors[i % wpColors.length])
-        )
+            return hh + ":" + mm
+        }
     }
 
-    // Header
-    drawings.push(...[
-        hor(2, 0, 8, 2, -1, 1),
-        hor(3, 0, 8, 2, -1, 1),
+    function formatDuration(hours: number | null) {
+        let minutes = hours * 60
+        if (minutes == null) {
+            return ""
+        } else {
+            let m = Math.floor(minutes)
+            let s = Math.round((minutes - m) * 60)
 
-        ver(2, 0, 1, 2, -1, 1),
-        ver(2, 1, 1, 1, -1, 1),
-        ver(2, 2, 1, 2, -1, 1),
-        ver(2, 3, 1, 2, -1, 1),
-        ver(2, 4, 1, 1, -1, 1),
-        ver(2, 5, 1, 2, -1, 1),
-        ver(2, 6, 1, 2, -1, 1),
-        ver(2, 7, 1, 1, -1, 1),
-        ver(2, 8, 1, 2, -1, 1),
+            let mm = m < 10 ? '0' + m : m
+            let ss = s < 10 ? '0' + s : s
 
-        ltext(2, 0, "MH"),
-        ltext(2, 1, "MT"),
-        ltext(2, 2, "GS"),
-        ltext(2, 3, "Alt"),
-        ltext(2, 4, "MSA"),
-        ltext(2, 5, "Fuel"),
-        ltext(2, 6, "ET"),
-        ltext(2, 7, "AT"),
-    ]);
+            return mm + ":" + ss
+        }
+    }
 
-
-    for (let i = 0; i < plan.legs.length; i++) {
-        let waypoint = plan.waypoints[i]
-        let leg = plan.legs[i]
+    let pages: Page[] = trip.plans.map(plan => {
+        let drawings = []
+        // Top part
         drawings.push(...[
-            hor(2 * i + 4, 0, 8, 1, 0, 0),
-            hor(2 * i + 5, 0, 8, 1, 0, 0),
+            colorBox(0, 0, 1, 1, lightGrey),
+            colorBox(0, 2, 1, 1, lightGrey),
+            hor(0, 0, 4, 2, -1, 1),
+            hor(1, 0, 4, 2, -1, 1),
+            ver(0, 0, 1, 2, -1, 1),
+            ver(0, 1, 1, 1, -1, 1),
+            ver(0, 2, 1, 2, -1, 1),
+            ver(0, 3, 1, 1, -1, 1),
+            ver(0, 4, 1, 2, -1, 1),
+            ltext(0, 0, "Pwr"),
+            ltext(0, 1, trip.powerSetting),
+            ltext(0, 2, "IAS"),
+            rtext(0, 3, formatInt(trip.ias)),
+        ]);
 
-            ver(2 * i + 3, 0, 2, 2, 0, 0),
-            ver(2 * i + 4, 1, 1, 1, 0, 0),
-            ver(2 * i + 4, 2, 1, 2, 0, 0),
-            ver(2 * i + 3, 3, 2, 2, 0, 0),
-            ver(2 * i + 3, 4, 2, 1, 0, 0),
-            ver(2 * i + 3, 5, 2, 2, 0, 0),
-            ver(2 * i + 3, 6, 2, 2, 0, 0),
-            ver(2 * i + 3, 7, 2, 1, 0, 0),
-            ver(2 * i + 3, 8, 2, 2, 0, 0),
+        // First the colors: Header
+        drawings.push(
+            colorBox(2, 0, 1, 8.5, lightGrey)
+        )
+        // First the colors: Waypoints
+        for (let i = 0; i < plan.waypoints.length; i++) {
+            drawings.push(
+                colorBox(2 * i + 3, 0, 1, 8.5, wpColors[i % wpColors.length])
+            )
+        }
 
-            ltext(2 * i + 3, 0, waypoint.name),
-            rtext(2 * i + 3, 3, formatInt(waypoint.alt)),
-            rtext(2 * i + 3, 5, formatFuel(waypoint.fuel)),
-            ltext(2 * i + 3, 6, "ET"),
-            ltext(2 * i + 3, 7, "AT"),
+        // Header
+        drawings.push(...[
+            hor(2, 0, 8.5, 2, -1, 1),
+            hor(3, 0, 8.5, 2, -1, 1),
 
-            rtext(2 * i + 4, 0, formatInt(leg.mh)),
-            rtext(2 * i + 4, 1, formatInt(leg.mt)),
-            rtext(2 * i + 4, 2, formatInt(leg.gs)),
-            rtext(2 * i + 4, 3, formatInt(leg.alt)),
-            rtext(2 * i + 4, 4, formatInt(leg.msa)),
-            rtext(2 * i + 4, 5, formatFuel(leg.fuel)),
-            ltext(2 * i + 4, 6, "ET"),
-            ltext(2 * i + 4, 7, "AT"),
+            ver(2, 0, 1, 2, -1, 1),
+            ver(2, 1, 1, 1, -1, 1),
+            ver(2, 2, 1, 2, -1, 1),
+            ver(2, 3, 1, 2, -1, 1),
+            ver(2, 4, 1, 1, -1, 1),
+            ver(2, 5, 1, 2, -1, 1),
+            ver(2, 6, 1, 2, -1, 1),
+            ver(2, 7.5, 1, 1, -1, 1),
+            ver(2, 8.5, 1, 2, -1, 1),
+
+            ltext(2, 0, "MH"),
+            ltext(2, 1, "MT"),
+            ltext(2, 2, "GS"),
+            ltext(2, 3, "Alt"),
+            ltext(2, 4, "MSA"),
+            ltext(2, 5, "Fuel"),
+            ltext(2, 6, "ET"),
+            ltext(2, 7.5, "AT"),
+        ]);
+
+
+        for (let i = 0; i < plan.legs.length; i++) {
+            let waypoint = plan.waypoints[i]
+            let leg = plan.legs[i]
+            drawings.push(...[
+                hor(2 * i + 4, 0, 8.5, 1, 0, 0),
+                hor(2 * i + 5, 0, 8.5, 1, 0, 0),
+
+                ver(2 * i + 3, 0, 2, 2, 0, 0),
+                ver(2 * i + 4, 1, 1, 1, 0, 0),
+                ver(2 * i + 4, 2, 1, 2, 0, 0),
+                ver(2 * i + 3, 3, 2, 2, 0, 0),
+                ver(2 * i + 3, 4, 2, 1, 0, 0),
+                ver(2 * i + 3, 5, 2, 2, 0, 0),
+                ver(2 * i + 3, 6, 2, 2, 0, 0),
+                ver(2 * i + 3, 7.5, 2, 1, 0, 0),
+                ver(2 * i + 3, 8.5, 2, 2, 0, 0),
+
+                ltext(2 * i + 3, 0, waypoint.name),
+                rtext(2 * i + 3, 3, formatInt(waypoint.alt)),
+                rtext(2 * i + 3, 5, formatFuel(waypoint.fuel)),
+                ltext(2 * i + 3, 6, formatTime(waypoint.eta)),
+
+                rtext(2 * i + 4, 0, formatInt(leg.mh)),
+                rtext(2 * i + 4, 1, formatInt(leg.mt)),
+                rtext(2 * i + 4, 2, formatInt(leg.gs)),
+                rtext(2 * i + 4, 3, formatInt(leg.alt)),
+                rtext(2 * i + 4, 4, formatInt(leg.msa)),
+                rtext(2 * i + 4, 5, formatFuel(leg.fuel)),
+                rtext(2 * i + 4, 6, formatDuration(leg.ete))
+            ])
+        }
+
+        let lastWpIdx = plan.legs.length;
+        let lastWaypoint = plan.waypoints[lastWpIdx]
+        drawings.push(...[
+            hor(2 * lastWpIdx + 4, 0, 8.5, 2, -1, 1),
+
+            ver(2 * lastWpIdx + 3, 0, 1, 2, 0, 1),
+            ver(2 * lastWpIdx + 3, 3, 1, 2, 0, 0),
+            ver(2 * lastWpIdx + 3, 4, 1, 1, 0, 0),
+            ver(2 * lastWpIdx + 3, 5, 1, 2, 0, 0),
+            ver(2 * lastWpIdx + 3, 6, 1, 2, 0, 0),
+            ver(2 * lastWpIdx + 3, 7.5, 1, 1, 0, 0),
+            ver(2 * lastWpIdx + 3, 8.5, 1, 2, 0, 1),
+
+            ltext(2 * lastWpIdx + 3, 0, lastWaypoint.name),
+            rtext(2 * lastWpIdx + 3, 3, formatInt(lastWaypoint.alt)),
+            rtext(2 * lastWpIdx + 3, 5, formatFuel(lastWaypoint.fuel)),
+            ltext(2 * lastWpIdx + 3, 6, formatTime(lastWaypoint.eta)),
         ])
-    }
 
-    let lastWpIdx = plan.legs.length;
-    let lastWaypoint = plan.waypoints[lastWpIdx]
-    drawings.push(...[
-        hor(2 * lastWpIdx + 4, 0, 8, 2, -1, 1),
+        return {
+            height: a5_height,
+            width: a5_width,
+            drawings: drawings
+        }
+    })
 
-        ver(2 * lastWpIdx + 3, 0, 1, 2, 0, 1),
-        ver(2 * lastWpIdx + 3, 3, 1, 2, 0, 0),
-        ver(2 * lastWpIdx + 3, 4, 1, 1, 0, 0),
-        ver(2 * lastWpIdx + 3, 5, 1, 2, 0, 0),
-        ver(2 * lastWpIdx + 3, 6, 1, 2, 0, 0),
-        ver(2 * lastWpIdx + 3, 7, 1, 1, 0, 0),
-        ver(2 * lastWpIdx + 3, 8, 1, 2, 0, 1),
-
-        ltext(2 * lastWpIdx + 3, 0, lastWaypoint.name),
-        rtext(2 * lastWpIdx + 3, 3, formatInt(lastWaypoint.alt)),
-        rtext(2 * lastWpIdx + 3, 5, formatFuel(lastWaypoint.fuel)),
-        ltext(2 * lastWpIdx + 3, 6, "ET"),
-        ltext(2 * lastWpIdx + 3, 7, "AT"),
-    ])
-
-
-    return [{
-        height: -1,
-        width: -1,
-        drawings: drawings
-    }]
+    return pages
 }
 
 class StopElement {
@@ -845,7 +875,7 @@ function trip(tripPage: TripPage) {
         ),
         div(sub(map(tripPage.firstStop, fs => arr(firstStopElement(tripPage, fs))))),
         div(clazz("calculate-button"), button(text("Calculate"), onklick(() => tripPage.calculate()))),
-        div(canvas(id("test-canvas"), width(600), height(600)))
+        div(canvas(id("test-canvas"), width(0), height(0)))
     ])
 }
 
@@ -1110,46 +1140,100 @@ interface ColorBox {
 }
 
 function draw(canvas: HTMLCanvasElement, pages: Page[]) {
-    let page = pages[0];
-    let ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    page.drawings.forEach((drawing) => {
-        if(drawing.type === "line") {
-            ctx.beginPath()
-            if(drawing.start.y == drawing.end.y && drawing.lineWidth % 2 == 1) {
-                // Horizontal line
-                ctx.moveTo(drawing.start.x, drawing.start.y + 0.5)
-                ctx.lineTo(drawing.end.x, drawing.end.y + 0.5)
-            } else if (drawing.start.x == drawing.end.x && drawing.lineWidth % 2 == 1) {
-                // Vertical line
-                ctx.moveTo(drawing.start.x + 0.5, drawing.start.y)
-                ctx.lineTo(drawing.end.x + 0.5, drawing.end.y)
-            } else {
-                ctx.moveTo(drawing.start.x, drawing.start.y)
-                ctx.lineTo(drawing.end.x, drawing.end.y)
-            }
-            ctx.lineWidth = drawing.lineWidth
-            ctx.stroke()
-        } else if(drawing.type === "text") {
-            ctx.beginPath()
-            ctx.font = "normal " + drawing.fontSize + "px Arial"
-            if(drawing.align == "left") {
-                ctx.textAlign = "left"
-            } else if(drawing.align == "right") {
-                ctx.textAlign = "right"
-            } else {
-                throw "Unknown align"
-            }
-            ctx.fillText(drawing.text, drawing.start.x, drawing.start.y)
-        } else if(drawing.type === "colorbox") {
-            ctx.beginPath()
-            ctx.fillStyle = colorToString(drawing.color)
-            ctx.fillRect(drawing.topLeft.x, drawing.topLeft.y, drawing.size.width, drawing.size.height)
-            ctx.fillStyle = "black"
-        } else {
-            throw "Unknown type"
+    let pixels = Math.sqrt(window.screen.height * window.screen.height + window.screen.width * window.screen.width);
+    // In HTML, there are 96 pixels per inch
+    // TODO make configurable
+    let scale = (pixels / 27) / 96
+
+    let pageMargin = 20
+
+    let width = 0
+    let height = 0
+    for (let page of pages) {
+        if(width < page.width * scale) {
+            width = page.width * scale
         }
-    })
+        height += pageMargin + Math.ceil(page.height * scale);
+    }
+    width += 2 * pageMargin;
+    height += pageMargin;
+
+    canvas.width = width
+    canvas.height = height
+
+    let ctx = canvas.getContext("2d");
+    ctx.fillStyle = "lightgrey"
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+    let xOffset = pageMargin
+    let yOffset = pageMargin
+    for (let page of pages) {
+        drawPage(xOffset, yOffset, page)
+        yOffset += pageMargin + Math.ceil(page.height * scale);
+    }
+
+    function drawPage(xOffset: number, yOffset: number, page: Page) {
+        ctx.resetTransform()
+        ctx.translate(xOffset, yOffset)
+        // ctx.scale(scale, scale);
+
+        ctx.fillStyle = "white"
+        ctx.fillRect(0, 0, Math.ceil(scale*page.width), Math.ceil(scale * page.height))
+
+        page.drawings.forEach((drawing) => {
+            if(drawing.type === "line") {
+                ctx.beginPath()
+                if(drawing.start.y == drawing.end.y) {
+                    // Horizontal line
+                    let width = Math.round(scale * drawing.lineWidth)
+                    let halfWidth = width / 2;
+                    let x1 = Math.round(scale * drawing.start.x)
+                    let x2 = Math.round(scale * drawing.end.x)
+                    let y = Math.round(scale * drawing.start.y - halfWidth) + halfWidth
+                    ctx.moveTo(x1, y)
+                    ctx.lineTo(x2, y)
+                    ctx.lineWidth = width
+                } else if (drawing.start.x == drawing.end.x) {
+                    // Vertical line
+                    let width = Math.round(scale * drawing.lineWidth)
+                    let halfWidth = width / 2;
+                    let x = Math.round(scale * drawing.start.x - halfWidth) + halfWidth
+                    let y1 = Math.round(scale * drawing.start.y)
+                    let y2 = Math.round(scale * drawing.end.y)
+                    ctx.moveTo(x, y1)
+                    ctx.lineTo(x, y2)
+                    ctx.lineWidth = width
+                } else {
+                    ctx.moveTo(drawing.start.x, drawing.start.y)
+                    ctx.lineTo(drawing.end.x, drawing.end.y)
+                    ctx.lineWidth = drawing.lineWidth
+                }
+                ctx.stroke()
+            } else if(drawing.type === "text") {
+                ctx.beginPath()
+                ctx.font = "normal " + scale * drawing.fontSize + "px Arial"
+                if(drawing.align == "left") {
+                    ctx.textAlign = "left"
+                } else if(drawing.align == "right") {
+                    ctx.textAlign = "right"
+                } else {
+                    throw "Unknown align"
+                }
+                ctx.fillText(drawing.text, scale * drawing.start.x, scale * drawing.start.y)
+            } else if(drawing.type === "colorbox") {
+                ctx.beginPath()
+                ctx.fillStyle = colorToString(drawing.color)
+                let x1 = Math.round(scale * drawing.topLeft.x)
+                let y1 = Math.round(scale * drawing.topLeft.y)
+                let x2 = Math.round(scale * (drawing.topLeft.x + drawing.size.width))
+                let y2 = Math.round(scale * (drawing.topLeft.y + drawing.size.height))
+                ctx.fillRect(x1, y1, (x2 - x1), (y2 - y1))
+                ctx.fillStyle = "black"
+            } else {
+                throw "Unknown type"
+            }
+        })
+    }
 }
 
 function colorToString(color: Color): string {
