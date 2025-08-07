@@ -344,7 +344,7 @@ class TripPage {
         visitStop(this.firstStop.get())
 
         return {
-            variation: null, // TODO
+            variation: 2, // TODO
             type: "plan",
             entity: planEntity,
             version: tripPlanVersion,
