@@ -469,7 +469,7 @@ function printTrip(trip: CalculatedTrip): Page[] {
         return {
             type: "text",
             fontSize: fontSize,
-            start: { y: topMargin + y * gridHeight + fontStartY, x: leftMargin + x * gridWidth + gridWidth - fontStartX },
+            start: { y: topMargin + y * gridHeight + fontStartY, x: leftMargin + x * gridWidth - fontStartX },
             text: text,
             align: "right",
         }
@@ -545,7 +545,7 @@ function printTrip(trip: CalculatedTrip): Page[] {
             ltext(0, 0, "Pwr"),
             ltext(0, 1, trip.powerSetting),
             ltext(0, 2, "IAS"),
-            rtext(0, 3, formatInt(trip.ias)),
+            rtext(0, 4, formatInt(trip.ias)),
         ]);
 
         // First the colors: Header
@@ -603,17 +603,17 @@ function printTrip(trip: CalculatedTrip): Page[] {
                 ver(2 * i + 3, 8.5, 2, 2, 0, 0),
 
                 ltext(2 * i + 3, 0, waypoint.name),
-                rtext(2 * i + 3, 3, formatInt(waypoint.alt)),
-                rtext(2 * i + 3, 5, formatFuel(waypoint.fuel)),
+                rtext(2 * i + 3, 4, formatInt(waypoint.alt)),
+                rtext(2 * i + 3, 6, formatFuel(waypoint.fuel)),
                 ltext(2 * i + 3, 6, formatTime(waypoint.eta)),
 
-                rtext(2 * i + 4, 0, formatInt(leg.mh)),
-                rtext(2 * i + 4, 1, formatInt(leg.mt)),
-                rtext(2 * i + 4, 2, formatInt(leg.gs)),
-                rtext(2 * i + 4, 3, formatInt(leg.alt)),
-                rtext(2 * i + 4, 4, formatInt(leg.msa)),
-                rtext(2 * i + 4, 5, formatFuel(leg.fuel)),
-                rtext(2 * i + 4, 6, formatDuration(leg.ete))
+                rtext(2 * i + 4, 1, formatInt(leg.mh)),
+                rtext(2 * i + 4, 2, formatInt(leg.mt)),
+                rtext(2 * i + 4, 3, formatInt(leg.gs)),
+                rtext(2 * i + 4, 4, formatInt(leg.alt)),
+                rtext(2 * i + 4, 5, formatInt(leg.msa)),
+                rtext(2 * i + 4, 6, formatFuel(leg.fuel)),
+                rtext(2 * i + 4, 7.5, formatDuration(leg.ete))
             ])
         }
 
@@ -631,9 +631,9 @@ function printTrip(trip: CalculatedTrip): Page[] {
             ver(2 * lastWpIdx + 3, 8.5, 1, 2, 0, 1),
 
             ltext(2 * lastWpIdx + 3, 0, lastWaypoint.name),
-            rtext(2 * lastWpIdx + 3, 3, formatInt(lastWaypoint.alt)),
-            rtext(2 * lastWpIdx + 3, 5, formatFuel(lastWaypoint.fuel)),
-            ltext(2 * lastWpIdx + 3, 6, formatTime(lastWaypoint.eta)),
+            rtext(2 * lastWpIdx + 3, 4, formatInt(lastWaypoint.alt)),
+            rtext(2 * lastWpIdx + 3, 6, formatFuel(lastWaypoint.fuel)),
+            ltext(2 * lastWpIdx + 3, 7.5, formatTime(lastWaypoint.eta)),
         ])
 
         return {
