@@ -198,6 +198,7 @@ class TripPage {
             this.powerSetting = new Value(null)
             this.ias = new Value(null)
             this.tas = new Value(null)
+            this.fuelFlow = new Value(null)
         } else {
             if(tripPlan.stops.length === 0) {
                 this.firstStop = new Value(null)
@@ -443,6 +444,18 @@ function printTrip(trip: CalculatedTrip): Page[] {
             start: { y: topMargin + y * gridHeight, x: leftMargin + x * gridWidth + lOffset },
             end: { y: topMargin + y * gridHeight, x: leftMargin + (x + w) * gridWidth + rOffset },
             lineWidth: width,
+            style: "solid",
+        }
+    }
+
+    function dotted(y: number, x: number, w: number, width: number, lOffset: number, rOffset: number): DottedLine {
+        return {
+            type: "line",
+            start: { y: topMargin + y * gridHeight, x: leftMargin + x * gridWidth + lOffset },
+            end: { y: topMargin + y * gridHeight, x: leftMargin + (x + w) * gridWidth + rOffset },
+            lineWidth: width,
+            style: "dotted",
+            dotDistance: 3
         }
     }
 
@@ -452,6 +465,7 @@ function printTrip(trip: CalculatedTrip): Page[] {
             start: { y: topMargin + y * gridHeight + tOffset, x: leftMargin + x * gridWidth },
             end: { y: topMargin + (y + h) * gridHeight + bOffset, x: leftMargin + x * gridWidth },
             lineWidth: width,
+            style: "solid",
         }
     }
 
@@ -529,7 +543,7 @@ function printTrip(trip: CalculatedTrip): Page[] {
         }
     }
 
-    let pages: Page[] = trip.plans.map(plan => {
+    let pages: Page[] = trip.plans.filter(p => p.waypoints.length > 0).map(plan => {
         let drawings = []
         // Top part
         drawings.push(...[
@@ -635,6 +649,13 @@ function printTrip(trip: CalculatedTrip): Page[] {
             rtext(2 * lastWpIdx + 3, 6, formatFuel(lastWaypoint.fuel)),
             ltext(2 * lastWpIdx + 3, 7.5, formatTime(lastWaypoint.eta)),
         ])
+
+        let firstLine = 2 * lastWpIdx + 6 + 1
+        for(let i = firstLine; i <= 33; i += 2) {
+            drawings.push(
+                dotted(i, 0, 8.5, 1, 0, 0),
+            )
+        }
 
         return {
             height: a5_height,
@@ -1116,6 +1137,12 @@ interface Line {
     start: Coordinate
     end: Coordinate
     lineWidth: number
+    style: "solid" | "dotted"
+}
+
+interface DottedLine extends Line {
+    style: "dotted"
+    dotDistance: number
 }
 
 interface Txt {
@@ -1183,6 +1210,14 @@ function draw(canvas: HTMLCanvasElement, pages: Page[]) {
         page.drawings.forEach((drawing) => {
             if(drawing.type === "line") {
                 ctx.beginPath()
+                if(drawing.style == "solid") {
+                    ctx.setLineDash([])
+                } else if(drawing.style == "dotted") {
+                    ctx.setLineDash([1, (drawing as DottedLine).dotDistance])
+                } else {
+                    throw "Unknown style"
+                }
+
                 if(drawing.start.y == drawing.end.y) {
                     // Horizontal line
                     let width = Math.round(scale * drawing.lineWidth)
