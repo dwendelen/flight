@@ -222,7 +222,12 @@ class TripPage {
                             let mapWaypoint = (idx: number): WaypointElement => {
                                 let waypoint = flight.waypoints[idx]
                                 let leg = mapLeg(idx)
-                                return new WaypointElement(leg, new Value(waypoint.name), new Value(waypoint.altitude))
+                                return new WaypointElement(
+                                    leg,
+                                    new Value(waypoint.name),
+                                    new Value(waypoint.altitude),
+                                    new Value(waypoint.eta)
+                                )
                             }
 
                             let mapLeg = (idx: number): LegElement => {
@@ -238,7 +243,9 @@ class TripPage {
                                             new Value(leg.windDirection),
                                             new Value(leg.windVelocity),
                                             new Value(leg.altitude),
-                                            new Value(leg.msa)
+                                            new Value(leg.msa),
+                                            new Value(leg.ete),
+                                            null // TODO
                                         )
                                 }
                             }
@@ -315,20 +322,35 @@ class TripPage {
                         waypoints.push({
                             name: waypoint.name.get(),
                             type: "simple",
-                            altitude: waypoint.altitude.get()
+                            altitude: waypoint.altitude.get(),
+                            eta: waypoint.eta.get()
                         })
                         visitLeg(waypoint.next)
                     }
                 }
                 let visitLeg = (leg: LegElement | null) => {
                     if (leg !== null) {
+                        let notes: Note[] = []
+                        let visitNote = (note: NoteElement | null) => {
+                            if(note != null) {
+                                notes.push({
+                                    time: note.time.get(),
+                                    note: note.note.get(),
+                                    number: note.number.get()
+                                })
+                                visitNote(note.next)
+                            }
+                        }
+                        visitNote(leg.firstNote)
                         legs.push({
                             trueTrack: leg.trueTrack.get(),
                             distance: leg.distance.get(),
                             windDirection: leg.windDirection.get(),
                             windVelocity: leg.windVelocity.get(),
                             altitude: leg.altitude.get(),
-                            msa: leg.msa.get()
+                            msa: leg.msa.get(),
+                            ete: leg.ete.get(),
+                            notes: notes
                         })
                         visitWaypoint(leg.next)
                     }
@@ -391,6 +413,18 @@ class TripPage {
     deleteWaypoint(flightElement: FlightElement, waypointElement: WaypointElement) {
         let firstStop: StopElement | null = this.firstStop.get()
         let newFirstStop = firstStop!.deleteWaypoint(flightElement, waypointElement)
+        this.firstStop.set(newFirstStop)
+    }
+
+    insertNoteAfter(flightElement: FlightElement, legElement: LegElement, noteElement: NoteElement | null) {
+        let firstStop: StopElement | null = this.firstStop.get()
+        let newFirstStop = firstStop!.insertNoteAfter(flightElement, legElement, noteElement)
+        this.firstStop.set(newFirstStop)
+    }
+
+    deleteNote(flightElement: FlightElement, legElement: LegElement, noteElement: NoteElement) {
+        let firstStop: StopElement | null = this.firstStop.get()
+        let newFirstStop = firstStop!.deleteNote(flightElement, legElement, noteElement)
         this.firstStop.set(newFirstStop)
     }
 
@@ -511,35 +545,6 @@ function printTrip(trip: CalculatedTrip): Page[] {
             } else {
                 return str
             }
-        }
-    }
-
-    function formatTime(hours: number | null) {
-        if (hours == null) {
-            return ""
-        } else {
-            let h = Math.floor(hours)
-            let m = Math.round((hours - h) * 60)
-
-            let hh = h < 10 ? '0' + h : h
-            let mm = m < 10 ? '0' + m : m
-
-            return hh + ":" + mm
-        }
-    }
-
-    function formatDuration(hours: number | null) {
-        let minutes = hours * 60
-        if (minutes == null) {
-            return ""
-        } else {
-            let m = Math.floor(minutes)
-            let s = Math.round((minutes - m) * 60)
-
-            let mm = m < 10 ? '0' + m : m
-            let ss = s < 10 ? '0' + s : s
-
-            return mm + ":" + ss
         }
     }
 
@@ -710,6 +715,20 @@ class StopElement {
             this.aerodrome
         )
     }
+
+    insertNoteAfter(flightElement: FlightElement, legElement: LegElement, noteElement: NoteElement | null): StopElement {
+        return new StopElement(
+            this.next.insertNoteAfter(flightElement, legElement, noteElement),
+            this.aerodrome
+        )
+    }
+
+    deleteNote(flightElement: FlightElement, legElement: LegElement, noteElement: NoteElement): StopElement {
+        return new StopElement(
+            this.next.deleteNote(flightElement, legElement, noteElement),
+            this.aerodrome
+        )
+    }
 }
 
 function newStopElement(next: FlightElement | null): StopElement {
@@ -742,7 +761,7 @@ class FlightElement {
         }
     }
 
-    insertWaypointAfter(flightElement: FlightElement, waypointElement: WaypointElement | null) {
+    insertWaypointAfter(flightElement: FlightElement, waypointElement: WaypointElement | null): FlightElement {
         if(flightElement === this) {
             let newFirstWaypoint: WaypointElement;
             if (waypointElement === null) {
@@ -768,7 +787,7 @@ class FlightElement {
         }
     }
 
-    deleteWaypoint(flightElement: FlightElement, waypointElement: WaypointElement) {
+    deleteWaypoint(flightElement: FlightElement, waypointElement: WaypointElement): FlightElement {
         if(flightElement === this) {
             let newFirstWaypoint = this.firstWaypoint.deleteWaypoint(waypointElement)
             return new FlightElement(this.next, newFirstWaypoint)
@@ -780,10 +799,33 @@ class FlightElement {
         }
     }
 
+    insertNoteAfter(flightElement: FlightElement, legElement: LegElement, noteElement: NoteElement | null): FlightElement {
+        if(flightElement === this) {
+            let newFirstWaypoint = this.firstWaypoint.insertNoteAfter(legElement, noteElement)
+            return new FlightElement(this.next, newFirstWaypoint)
+        } else {
+            return new FlightElement(
+                this.next.insertNoteAfter(flightElement, legElement, noteElement),
+                this.firstWaypoint
+            )
+        }
+    }
+
+    deleteNote(flightElement: FlightElement, legElement: LegElement, noteElement: NoteElement): FlightElement {
+        if(flightElement === this) {
+            let newFirstWaypoint = this.firstWaypoint.deleteNote(legElement, noteElement)
+            return new FlightElement(this.next, newFirstWaypoint)
+        } else {
+            return new FlightElement(
+                this.next.deleteNote(flightElement, legElement, noteElement),
+                this.firstWaypoint
+            )
+        }
+    }
 }
 
 function newWaypointElement(next: LegElement | null): WaypointElement {
-    return new WaypointElement(next, new Value("New Waypoint"), new Value(null))
+    return new WaypointElement(next, new Value("New Waypoint"), new Value(null), new Value(null))
 }
 
 function newLegElement(next: WaypointElement): LegElement {
@@ -794,7 +836,9 @@ function newLegElement(next: WaypointElement): LegElement {
         new Value(null),
         new Value(null),
         new Value(null),
-        new Value(null)
+        new Value(null),
+        new Value(null),
+        null,
     )
 }
 
@@ -802,7 +846,8 @@ class WaypointElement {
     constructor(
         public readonly next: LegElement | null,
         public readonly name: Value<string>,
-        public readonly altitude: Value<number | null> //TODO number
+        public readonly altitude: Value<number | null>,
+        public readonly eta: Value<Time | null>
     ) {
     }
 
@@ -814,7 +859,7 @@ class WaypointElement {
         } else {
             newLeg = this.next.insertWaypointAfter(waypointElement);
         }
-        return new WaypointElement(newLeg, this.name, this.altitude)
+        return new WaypointElement(newLeg, this.name, this.altitude, this.eta)
     }
 
     deleteWaypoint(waypointElement: WaypointElement): WaypointElement {
@@ -829,21 +874,33 @@ class WaypointElement {
                 return this
             } else {
                 let newLeg = this.next.deleteWaypoint(waypointElement)
-                return new WaypointElement(newLeg, this.name, this.altitude)
+                return new WaypointElement(newLeg, this.name, this.altitude, this.eta)
             }
         }
+    }
+
+    insertNoteAfter(legElement: LegElement, noteElement: NoteElement | null): WaypointElement {
+        let newLeg = this.next.insertNoteAfter(legElement, noteElement);
+        return new WaypointElement(newLeg, this.name, this.altitude, this.eta)
+    }
+
+    deleteNote(legElement: LegElement, noteElement: NoteElement): WaypointElement {
+        let newLeg = this.next.deleteNote(legElement, noteElement);
+        return new WaypointElement(newLeg, this.name, this.altitude, this.eta)
     }
 }
 
 class LegElement {
     constructor(
         public readonly next: WaypointElement,
-        public readonly trueTrack: Value<number | null>, // TODO number
-        public readonly distance: Value<number | null>, // TODO number
-        public readonly windDirection: Value<number | null>, // TODO number
-        public readonly windVelocity: Value<number | null>, // TODO number
-        public readonly altitude: Value<number | null>, // TODO number
-        public readonly msa: Value<number | null>, // TODO number
+        public readonly trueTrack: Value<number | null>,
+        public readonly distance: Value<number | null>,
+        public readonly windDirection: Value<number | null>,
+        public readonly windVelocity: Value<number | null>,
+        public readonly altitude: Value<number | null>,
+        public readonly msa: Value<number | null>,
+        public readonly ete: Value<Duration | null>,
+        public readonly firstNote: NoteElement | null
     ) {
     }
 
@@ -863,6 +920,36 @@ class LegElement {
         }
     }
 
+    insertNoteAfter(legElement: LegElement, noteElement: NoteElement | null): LegElement {
+        if(legElement === this) {
+            let newNote: NoteElement
+            if(noteElement === null) {
+                newNote = new NoteElement(
+                    this.firstNote,
+                    new Value(null),
+                    new Value(null),
+                    new Value(null),
+                )
+            } else {
+                newNote = this.firstNote.insertNoteAfter(noteElement)
+            }
+            return this.withFirstNote(newNote)
+        } else {
+            let newNext = this.next.insertNoteAfter(legElement, noteElement)
+            return this.withNext(newNext)
+        }
+    }
+
+    deleteNote(legElement: LegElement, noteElement: NoteElement): LegElement {
+        if(legElement === this) {
+            let newNote = this.firstNote.deleteNote(noteElement)
+            return this.withFirstNote(newNote)
+        } else {
+            let newNext = this.next.deleteNote(legElement, noteElement)
+            return this.withNext(newNext)
+        }
+    }
+
     private withNext(next: WaypointElement): LegElement {
         return new LegElement(
             next,
@@ -872,6 +959,65 @@ class LegElement {
             this.windVelocity,
             this.altitude,
             this.msa,
+            this.ete,
+            this.firstNote
+        )
+    }
+
+    private withFirstNote(firstNote: NoteElement): LegElement {
+        return new LegElement(
+            this.next,
+            this.trueTrack,
+            this.distance,
+            this.windDirection,
+            this.windVelocity,
+            this.altitude,
+            this.msa,
+            this.ete,
+            firstNote
+        )
+    }
+}
+
+class NoteElement {
+    constructor(
+        public readonly next: NoteElement,
+        public readonly time: Value<Duration | null>,
+        public readonly note: Value<string | null>,
+        public readonly number: Value<string | null>,
+    ) {
+    }
+
+    insertNoteAfter(noteElement: NoteElement): NoteElement {
+        if(noteElement === this) {
+            let newNote = new NoteElement(
+                this.next,
+                new Value(null),
+                new Value(null),
+                new Value(null),
+            )
+            return this.withNext(newNote)
+        } else {
+            let newNote = this.next.insertNoteAfter(noteElement)
+            return this.withNext(newNote)
+        }
+    }
+
+    deleteNote(noteElement: NoteElement): NoteElement {
+        if(noteElement === this) {
+            return this.next
+        } else {
+            let newNext = this.next.deleteNote(noteElement)
+            return this.withNext(newNext)
+        }
+    }
+
+    private withNext(next: NoteElement): NoteElement {
+        return new NoteElement(
+            next,
+            this.time,
+            this.note,
+            this.number,
         )
     }
 }
@@ -967,6 +1113,7 @@ function firstWaypointOrInsertStop(
             div(clazz("wind-header"), text("Wind")),
             div(clazz("alt-header"), text("Alt")),
             div(clazz("msa-header"), text("MSA")),
+            div(clazz("et-header"), text("ET")),
             div(clazz("action-header")),
             div(clazz("action"), button(text("Insert Waypoint"), onklick(() => { tripPage.insertWaypointAfter(flightElement, null) }))),
             ...renderWaypointElement(tripPage, flightElement, firstWaypoint)
@@ -983,6 +1130,7 @@ function renderWaypointElement(
         div(clazz("wp-name"), textInput(value(waypointElement.name))),
         div(clazz("wp-alt"), numberInput(waypointElement.altitude)),
         div(clazz("wp-msa")),
+        div(clazz("wp-et"), timeInput(waypointElement.eta)),
         div(clazz("wp-action"), button(text("Delete"), onklick(() => tripPage.deleteWaypoint(flightElement, waypointElement)))),
         ...renderPostWaypointElement(tripPage, flightElement, waypointElement)
     ]
@@ -1007,6 +1155,7 @@ function renderPostWaypointElement(
             div(clazz("leg-wind-vel"), numberInput(legElement.windVelocity, 0)),
             div(clazz("leg-alt"), numberInput(legElement.altitude)),
             div(clazz("leg-msa"), numberInput(legElement.msa)),
+            div(clazz("leg-et"), durationInput(legElement.ete)),
             div(clazz("leg-action"), button(text("Insert Waypoint"), onklick(() => { tripPage.insertWaypointAfter(flightElement, waypointElement) }))),
             ...renderWaypointElement(tripPage, flightElement, legElement.next)
         ]
@@ -1028,7 +1177,7 @@ interface CalculatedWaypoint {
     name: string
     alt: number | null
     fuel: number | null
-    eta: number | null
+    eta: Time | null
 }
 
 interface CalculatedLeg {
@@ -1038,7 +1187,7 @@ interface CalculatedLeg {
     alt: number | null
     msa: number | null
     fuel: number | null
-    ete: number | null
+    ete: Duration | null
 }
 
 const RADIANS_PER_DEGREE = 2 * Math.PI / 360
@@ -1052,7 +1201,7 @@ function calculate(tripPlan: TripPlan): CalculatedTrip {
                     name: wp.name,
                     alt: wp.altitude,
                     fuel: null,
-                    eta: null
+                    eta: wp.eta
                 }
             }),
             legs: fp.legs.map(leg => {
@@ -1062,6 +1211,7 @@ function calculate(tripPlan: TripPlan): CalculatedTrip {
                 } else {
                     mt = null
                 }
+
                 let th: number | null
                 let gs: number | null
                 if(leg.trueTrack != null && tripPlan.tas != null && leg.windDirection != null && leg.windVelocity != null) {
@@ -1075,18 +1225,25 @@ function calculate(tripPlan: TripPlan): CalculatedTrip {
                     gs = null
                     th = null
                 }
+
                 let mh: number | null
                 if(tripPlan.variation != null && th != null) {
                     mh = th - tripPlan.variation
                 } else {
                     mh = null
                 }
-                let ete: number | null
-                if(gs != null && leg.distance != null) {
-                    ete = leg.distance / gs
+
+                let ete: Duration | null
+                if(leg.ete == null) {
+                    if (gs != null && leg.distance != null) {
+                        ete = leg.distance / gs
+                    } else {
+                        ete = null
+                    }
                 } else {
-                    ete = null
+                    ete = leg.ete
                 }
+
                 let fuel: number | null
                 if(ete != null && tripPlan.fuelFlow != null) {
                     fuel = tripPlan.fuelFlow * ete
@@ -1596,6 +1753,7 @@ interface Waypoint {
     name: string
     type: WaypointType
     altitude: number | null
+    eta: number | null
 }
 
 interface Leg  {
@@ -1605,6 +1763,14 @@ interface Leg  {
     windVelocity: number | null
     altitude: number | null
     msa: number | null
+    ete: number | null
+    notes: Note[]
+}
+
+interface Note {
+    time: Duration | null
+    note: string | null
+    number: string | null
 }
 
 interface Tombstone extends VersionedEntity {
@@ -1617,17 +1783,8 @@ interface Date {
     d: number
 }
 
-interface Duration {
-    h: number
-    m: number
-    s: number
-}
-
-interface Time {
-    h: number
-    m: number
-    s: number
-}
+type Duration = number
+type Time = number
 
 interface LogbookEntry extends VersionedEntity {
     type: "logbook-entry"
@@ -1643,6 +1800,36 @@ interface LogbookEntry extends VersionedEntity {
     pic: Duration
     dual: Duration
     flight: number | null
+}
+
+
+function formatTime(hours: number | null) {
+    if (hours == null) {
+        return ""
+    } else {
+        let h = Math.floor(hours)
+        let m = Math.round((hours - h) * 60)
+
+        let hh = h < 10 ? '0' + h : h
+        let mm = m < 10 ? '0' + m : m
+
+        return hh + ":" + mm
+    }
+}
+
+function formatDuration(hours: number | null) {
+    if (hours == null) {
+        return ""
+    } else {
+        let minutes = hours * 60
+        let m = Math.floor(minutes)
+        let s = Math.round((minutes - m) * 60)
+
+        let mm = m < 10 ? '0' + m : m
+        let ss = s < 10 ? '0' + s : s
+
+        return mm + ":" + ss
+    }
 }
 
 type Component = (elem: HTMLElement) => Subscription
@@ -1703,6 +1890,58 @@ function numberInput(val: Value<number | null>, min: number | null = null, max: 
             }
             let v = val.get();
             text.set(v === null? "" : v.toString())
+        }
+
+        return textInput(value(text), onBlur(doOnBlur))
+    })
+}
+
+function durationInput(val: Value<Duration | null>): Component {
+    return factory(() => {
+        let v = val.get()
+        let text = new Value(v === null? "" : formatDuration(v))
+
+        let doOnBlur = () => {
+            let txt = text.get();
+            if(txt === "") {
+                val.set(null)
+            } else {
+                if(txt.length == 4) {
+                    let mm = parseInt(txt.substring(0, 2));
+                    let ss = parseInt(txt.substring(2, 4));
+                    if(!isNaN(mm) && !isNaN(ss)) {
+                        val.set((mm + ss / 60)/60)
+                    }
+                }
+            }
+            let v = val.get();
+            text.set(v === null? "" : formatDuration(v))
+        }
+
+        return textInput(value(text), onBlur(doOnBlur))
+    })
+}
+
+function timeInput(val: Value<Time | null>): Component {
+    return factory(() => {
+        let v = val.get()
+        let text = new Value(v === null? "" : formatTime(v))
+
+        let doOnBlur = () => {
+            let txt = text.get();
+            if(txt === "") {
+                val.set(null)
+            } else {
+                if(txt.length == 4) {
+                    let hh = parseInt(txt.substring(0, 2));
+                    let mm = parseInt(txt.substring(2, 4));
+                    if(!isNaN(hh) && !isNaN(mm)) {
+                        val.set(hh + mm / 60)
+                    }
+                }
+            }
+            let v = val.get();
+            text.set(v === null? "" : formatTime(v))
         }
 
         return textInput(value(text), onBlur(doOnBlur))

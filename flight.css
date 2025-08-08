@@ -29,7 +29,7 @@ div.perfo input {
 
 div.flightplan {
     display: grid;
-    grid-template-columns: 50px 50px 50px 50px 50px 50px 150px;
+    grid-template-columns: 50px 50px 50px 50px 50px 50px 50px 150px;
     margin-left: 20px;
 }
 
@@ -65,13 +65,17 @@ div.flightplan > div.msa-header {
     border-width: 2px 2px 2px 0;
 }
 
+div.flightplan > div.et-header {
+    border-width: 2px 2px 2px 0;
+}
+
 div.flightplan > div.action-header {
     border-style: none;
 }
 
 div.flightplan > div.action {
     grid-column-start: 1;
-    grid-column-end: 7;
+    grid-column-end: 8;
     border-width: 0 2px 1px 2px;
 }
 
@@ -86,6 +90,10 @@ div.flightplan > div.wp-alt {
 }
 
 div.flightplan > div.wp-msa {
+    border-width: 0 2px 1px 0;
+}
+
+div.flightplan > div.wp-et {
     border-width: 0 2px 1px 0;
 }
 
@@ -114,6 +122,10 @@ div.flightplan > div.leg-alt {
 }
 
 div.flightplan > div.leg-msa {
+    border-width: 0 2px 1px 0;
+}
+
+div.flightplan > div.leg-et {
     border-width: 0 2px 1px 0;
 }
 
