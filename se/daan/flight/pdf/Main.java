@@ -8,11 +8,9 @@ import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
-import org.apache.pdfbox.pdmodel.graphics.color.PDColor;
 import org.apache.pdfbox.util.Matrix;
 import se.daan.flight.pdf.api.*;
 
-import java.awt.geom.AffineTransform;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
