@@ -439,14 +439,18 @@ class TripPage {
 
 function printTrip(trip: CalculatedTrip): Page[] {
     // 96 pixels per inch
-    let a5_height = 21 / 2.54 * 96;
-    let a5_width = 14.8 / 2.54 * 96;
+    let a4_landscape_width = 29.7 / 2.54 * 96
+    let a4_landscape_height = 21.0 / 2.54 * 96
+    let a5_height = 21 / 2.54 * 96
+    let a5_width = 14.8 / 2.54 * 96
+
+    let halfWidth = Math.floor(a4_landscape_width / 2)
 
     let gridHeight = 21
     let gridWidth = 42
 
     let topMargin = 50
-    let leftMargin = Math.floor((a5_width - 8.5 * gridWidth) / 2)
+    let leftMargin = Math.floor((halfWidth - 8.5 * gridWidth) / 2)
 
     let fontSize = 10 / 3 * 4
     let fontStartX = 5
@@ -463,66 +467,6 @@ function printTrip(trip: CalculatedTrip): Page[] {
         lightYellow,
         lightBlue,
     ]
-
-    function colorBox(y: number, x: number, h: number, w: number, color: Color): ColorBox {
-        return {
-            type: "colorbox",
-            topLeft: { y: topMargin + y * gridHeight, x: leftMargin + x * gridWidth },
-            size: { height: h * gridHeight, width: w * gridWidth },
-            color: color
-        }
-    }
-
-    function hor(y: number, x: number, w: number, width: number, lOffset: number, rOffset: number): SolidLine {
-        return {
-            type: "line",
-            start: { y: topMargin + y * gridHeight, x: leftMargin + x * gridWidth + lOffset },
-            end: { y: topMargin + y * gridHeight, x: leftMargin + (x + w) * gridWidth + rOffset },
-            lineWidth: width,
-            style: "solid",
-        }
-    }
-
-    function dotted(y: number, x: number, w: number, width: number, lOffset: number, rOffset: number): DottedLine {
-        return {
-            type: "line",
-            start: { y: topMargin + y * gridHeight, x: leftMargin + x * gridWidth + lOffset },
-            end: { y: topMargin + y * gridHeight, x: leftMargin + (x + w) * gridWidth + rOffset },
-            lineWidth: width,
-            style: "dotted",
-            dotDistance: 3
-        }
-    }
-
-    function ver(y: number, x: number, h: number, width: number, tOffset: number, bOffset: number): SolidLine {
-        return {
-            type: "line",
-            start: { y: topMargin + y * gridHeight + tOffset, x: leftMargin + x * gridWidth },
-            end: { y: topMargin + (y + h) * gridHeight + bOffset, x: leftMargin + x * gridWidth },
-            lineWidth: width,
-            style: "solid",
-        }
-    }
-
-    function ltext(y: number, x: number, text: string): Txt {
-        return {
-            type: "text",
-            fontSize: fontSize,
-            start: { y: topMargin + y * gridHeight + fontStartY, x: leftMargin + x * gridWidth + fontStartX },
-            text: text,
-            align: "left",
-        }
-    }
-
-    function rtext(y: number, x: number, text: string): Txt {
-        return {
-            type: "text",
-            fontSize: fontSize,
-            start: { y: topMargin + y * gridHeight + fontStartY, x: leftMargin + x * gridWidth - fontStartX },
-            text: text,
-            align: "right",
-        }
-    }
 
     function formatFuel(num: number | null) {
         if (num == null) {
@@ -549,8 +493,97 @@ function printTrip(trip: CalculatedTrip): Page[] {
         }
     }
 
-    let pages: Page[] = trip.plans.filter(p => p.waypoints.length > 0).map(plan => {
+    let plans = trip.plans
+        .filter(p => p.waypoints.length > 0)
+
+    let pages: Page[] = []
+    let nbPages = Math.ceil(plans.length / 2)
+
+    for(let p = 0; p < nbPages; p++) {
         let drawings = []
+
+        printPlan(plans[p], drawings, 0)
+        let p2 = nbPages + p
+        if(p2 < plans.length) {
+            drawings.push({
+                type: "line",
+                start: { y: topMargin, x: halfWidth },
+                end: { y: Math.floor(a4_landscape_height - topMargin), x : halfWidth },
+                lineWidth: 1,
+                style: "dotted",
+                dotDistance: 3
+            })
+            printPlan(plans[p2], drawings, halfWidth)
+        }
+
+        pages.push({
+            height: a4_landscape_height,
+            width: a4_landscape_width,
+            drawings: drawings
+        })
+    }
+
+    function printPlan(plan: CalculatedPlan, drawings: Drawing[], xOffset: number) {
+        function colorBox(y: number, x: number, h: number, w: number, color: Color): ColorBox {
+            return {
+                type: "colorbox",
+                topLeft: { y: topMargin + y * gridHeight, x: leftMargin + x * gridWidth + xOffset },
+                size: { height: h * gridHeight, width: w * gridWidth },
+                color: color
+            }
+        }
+
+        function hor(y: number, x: number, w: number, width: number, lOffset: number, rOffset: number): SolidLine {
+            return {
+                type: "line",
+                start: { y: topMargin + y * gridHeight, x: leftMargin + x * gridWidth + lOffset + xOffset },
+                end: { y: topMargin + y * gridHeight, x: leftMargin + (x + w) * gridWidth + rOffset + xOffset },
+                lineWidth: width,
+                style: "solid",
+            }
+        }
+
+        function dotted(y: number, x: number, w: number, width: number, lOffset: number, rOffset: number): DottedLine {
+            return {
+                type: "line",
+                start: { y: topMargin + y * gridHeight, x: leftMargin + x * gridWidth + lOffset + xOffset },
+                end: { y: topMargin + y * gridHeight, x: leftMargin + (x + w) * gridWidth + rOffset + xOffset },
+                lineWidth: width,
+                style: "dotted",
+                dotDistance: 3
+            }
+        }
+
+        function ver(y: number, x: number, h: number, width: number, tOffset: number, bOffset: number): SolidLine {
+            return {
+                type: "line",
+                start: { y: topMargin + y * gridHeight + tOffset, x: leftMargin + x * gridWidth + xOffset },
+                end: { y: topMargin + (y + h) * gridHeight + bOffset, x: leftMargin + x * gridWidth + xOffset },
+                lineWidth: width,
+                style: "solid",
+            }
+        }
+
+        function ltext(y: number, x: number, text: string): Txt {
+            return {
+                type: "text",
+                fontSize: fontSize,
+                start: { y: topMargin + y * gridHeight + fontStartY, x: leftMargin + x * gridWidth + fontStartX + xOffset },
+                text: text,
+                align: "left",
+            }
+        }
+
+        function rtext(y: number, x: number, text: string): Txt {
+            return {
+                type: "text",
+                fontSize: fontSize,
+                start: { y: topMargin + y * gridHeight + fontStartY, x: leftMargin + x * gridWidth - fontStartX + xOffset },
+                text: text,
+                align: "right",
+            }
+        }
+
         // Top part
         drawings.push(...[
             colorBox(0, 0, 1, 1, lightGrey),
@@ -657,18 +690,12 @@ function printTrip(trip: CalculatedTrip): Page[] {
         ])
 
         let firstLine = 2 * lastWpIdx + 6 + 1
-        for(let i = firstLine; i <= 33; i += 2) {
+        for (let i = firstLine; i <= 33; i += 2) {
             drawings.push(
                 dotted(i, 0, 8.5, 1, 0, 0),
             )
         }
-
-        return {
-            height: a5_height,
-            width: a5_width,
-            drawings: drawings
-        }
-    })
+    }
 
     return pages
 }
