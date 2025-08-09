@@ -433,6 +433,7 @@ class TripPage {
         let calculated = calculate(tripPlan)
         let pages = printTrip(calculated)
         draw(document.getElementById("test-canvas") as HTMLCanvasElement, pages);
+        console.log(JSON.stringify(pages));
     }
 }
 
@@ -472,7 +473,7 @@ function printTrip(trip: CalculatedTrip): Page[] {
         }
     }
 
-    function hor(y: number, x: number, w: number, width: number, lOffset: number, rOffset: number): Line {
+    function hor(y: number, x: number, w: number, width: number, lOffset: number, rOffset: number): SolidLine {
         return {
             type: "line",
             start: { y: topMargin + y * gridHeight, x: leftMargin + x * gridWidth + lOffset },
@@ -493,7 +494,7 @@ function printTrip(trip: CalculatedTrip): Page[] {
         }
     }
 
-    function ver(y: number, x: number, h: number, width: number, tOffset: number, bOffset: number): Line {
+    function ver(y: number, x: number, h: number, width: number, tOffset: number, bOffset: number): SolidLine {
         return {
             type: "line",
             start: { y: topMargin + y * gridHeight + tOffset, x: leftMargin + x * gridWidth },
@@ -1295,6 +1296,10 @@ interface Line {
     end: Coordinate
     lineWidth: number
     style: "solid" | "dotted"
+}
+
+interface SolidLine extends Line {
+    style: "solid"
 }
 
 interface DottedLine extends Line {
