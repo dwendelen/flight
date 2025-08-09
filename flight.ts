@@ -770,6 +770,7 @@ function printTrip(trip: CalculatedTrip): Page[] {
         for (let i = 0; i < plan.legs.length; i++) {
             let leg = plan.legs[i]
             if(leg.leg.distance === null || leg.leg.distance === 0) {
+                // TODO could give weird results in the middle
                 continue
             }
             let dist = distance(leg)
