@@ -60,6 +60,8 @@ class Main {
                     float xOffset;
                     if(text.align().equals("left")) {
                         xOffset = 0f;
+                    } else if(text.align().equals("center")) {
+                        xOffset = -font.getStringWidth(text.text()) / 1000f * fontSize / 2f;
                     } else if(text.align().equals("right")) {
                         xOffset = -font.getStringWidth(text.text()) / 1000f * fontSize;
                     } else {

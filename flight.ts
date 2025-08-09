@@ -449,7 +449,7 @@ function printTrip(trip: CalculatedTrip): Page[] {
     let gridHeight = 21
     let gridWidth = 42
 
-    let topMargin = 50
+    let margin = 50
     let leftMargin = Math.floor((halfWidth - 8.5 * gridWidth) / 2)
 
     let fontSize = 10 / 3 * 4
@@ -507,8 +507,8 @@ function printTrip(trip: CalculatedTrip): Page[] {
         if(p2 < plans.length) {
             drawings.push({
                 type: "line",
-                start: { y: topMargin, x: halfWidth },
-                end: { y: Math.floor(a4_landscape_height - topMargin), x : halfWidth },
+                start: { y: margin, x: halfWidth },
+                end: { y: Math.floor(a4_landscape_height - margin), x : halfWidth },
                 lineWidth: 1,
                 style: "dotted",
                 dotDistance: 3
@@ -527,7 +527,7 @@ function printTrip(trip: CalculatedTrip): Page[] {
         function colorBox(y: number, x: number, h: number, w: number, color: Color): ColorBox {
             return {
                 type: "colorbox",
-                topLeft: { y: topMargin + y * gridHeight, x: leftMargin + x * gridWidth + xOffset },
+                topLeft: { y: margin + y * gridHeight, x: leftMargin + x * gridWidth + xOffset },
                 size: { height: h * gridHeight, width: w * gridWidth },
                 color: color
             }
@@ -536,8 +536,8 @@ function printTrip(trip: CalculatedTrip): Page[] {
         function hor(y: number, x: number, w: number, width: number, lOffset: number, rOffset: number): SolidLine {
             return {
                 type: "line",
-                start: { y: topMargin + y * gridHeight, x: leftMargin + x * gridWidth + lOffset + xOffset },
-                end: { y: topMargin + y * gridHeight, x: leftMargin + (x + w) * gridWidth + rOffset + xOffset },
+                start: { y: margin + y * gridHeight, x: leftMargin + x * gridWidth + lOffset + xOffset },
+                end: { y: margin + y * gridHeight, x: leftMargin + (x + w) * gridWidth + rOffset + xOffset },
                 lineWidth: width,
                 style: "solid",
             }
@@ -546,8 +546,8 @@ function printTrip(trip: CalculatedTrip): Page[] {
         function dotted(y: number, x: number, w: number, width: number, lOffset: number, rOffset: number): DottedLine {
             return {
                 type: "line",
-                start: { y: topMargin + y * gridHeight, x: leftMargin + x * gridWidth + lOffset + xOffset },
-                end: { y: topMargin + y * gridHeight, x: leftMargin + (x + w) * gridWidth + rOffset + xOffset },
+                start: { y: margin + y * gridHeight, x: leftMargin + x * gridWidth + lOffset + xOffset },
+                end: { y: margin + y * gridHeight, x: leftMargin + (x + w) * gridWidth + rOffset + xOffset },
                 lineWidth: width,
                 style: "dotted",
                 dotDistance: 3
@@ -557,8 +557,8 @@ function printTrip(trip: CalculatedTrip): Page[] {
         function ver(y: number, x: number, h: number, width: number, tOffset: number, bOffset: number): SolidLine {
             return {
                 type: "line",
-                start: { y: topMargin + y * gridHeight + tOffset, x: leftMargin + x * gridWidth + xOffset },
-                end: { y: topMargin + (y + h) * gridHeight + bOffset, x: leftMargin + x * gridWidth + xOffset },
+                start: { y: margin + y * gridHeight + tOffset, x: leftMargin + x * gridWidth + xOffset },
+                end: { y: margin + (y + h) * gridHeight + bOffset, x: leftMargin + x * gridWidth + xOffset },
                 lineWidth: width,
                 style: "solid",
             }
@@ -568,7 +568,7 @@ function printTrip(trip: CalculatedTrip): Page[] {
             return {
                 type: "text",
                 fontSize: fontSize,
-                start: { y: topMargin + y * gridHeight + fontStartY, x: leftMargin + x * gridWidth + fontStartX + xOffset },
+                start: { y: margin + y * gridHeight + fontStartY, x: leftMargin + x * gridWidth + fontStartX + xOffset },
                 text: text,
                 align: "left",
             }
@@ -578,7 +578,7 @@ function printTrip(trip: CalculatedTrip): Page[] {
             return {
                 type: "text",
                 fontSize: fontSize,
-                start: { y: topMargin + y * gridHeight + fontStartY, x: leftMargin + x * gridWidth - fontStartX + xOffset },
+                start: { y: margin + y * gridHeight + fontStartY, x: leftMargin + x * gridWidth - fontStartX + xOffset },
                 text: text,
                 align: "right",
             }
@@ -696,6 +696,157 @@ function printTrip(trip: CalculatedTrip): Page[] {
             )
         }
     }
+
+    let longLine = 20
+    let shortLine = 10
+
+    const KM_PER_NM = 1.852
+    const MAP_SCALE = 1/250000
+    const PX_PER_CM = 96 / 2.54
+    const CM_PER_KM = 100000
+
+    function distance(leg: CalculatedLeg): number {
+        return leg.leg.distance * KM_PER_NM * CM_PER_KM * PX_PER_CM * MAP_SCALE
+    }
+
+    function hor(y: number, x1: number, x2: number): SolidLine {
+        return {
+            type: "line",
+            start: { y: y, x: x1 },
+            end: { y: y, x: x2 },
+            lineWidth: 1,
+            style: "solid",
+        }
+    }
+
+    function ver(y: number, x: number, h: number): SolidLine {
+        return {
+            type: "line",
+            start: { y: y - 0.5, x: x },
+            end: { y: y + h, x:x },
+            lineWidth: 1,
+            style: "solid",
+        }
+    }
+
+    function ltext(y: number, x: number, text: string): Txt {
+        return {
+            type: "text",
+            fontSize: fontSize,
+            start: { y: y, x: x },
+            text: text,
+            align: "left",
+        }
+    }
+
+    function ctext(y: number, x: number, text: string): Txt {
+        return {
+            type: "text",
+            fontSize: fontSize,
+            start: { y: y, x: x },
+            text: text,
+            align: "center",
+        }
+    }
+
+    function rtext(y: number, x: number, text: string): Txt {
+        return {
+            type: "text",
+            fontSize: fontSize,
+            start: { y: y, x: x },
+            text: text,
+            align: "right",
+        }
+    }
+
+    let drawings: Drawing[] = []
+    let x = Math.floor(a4_landscape_width - margin)
+    let y = margin
+    let halfMaxTextWidth = 50
+    let xLastText = Number.MAX_VALUE
+    let start = true
+
+    for (let plan of trip.plans) {
+        for (let i = 0; i < plan.legs.length; i++) {
+            let leg = plan.legs[i]
+            if(leg.leg.distance === null || leg.leg.distance === 0) {
+                continue
+            }
+            let dist = distance(leg)
+            let startX = x
+            let endX = x - dist
+
+            if(endX < margin) {
+                x = Math.floor(a4_landscape_width - margin)
+                y += 3 * longLine
+                xLastText = Number.MAX_VALUE
+                start = true
+                startX = x
+                endX = x - dist
+            }
+
+            drawings.push(
+                hor(y, Math.round(startX), Math.round(endX))
+            )
+            if(start) {
+                let wp = plan.waypoints[i]
+                drawings.push(
+                    ver(y, Math.round(startX), longLine),
+                    rtext(y + longLine + fontStartY, Math.round(startX), wp.name)
+                )
+                xLastText = startX -  2 * halfMaxTextWidth
+                start = false
+            }
+            drawings.push(
+                ver(y, Math.round(endX), longLine)
+            )
+            if(endX - halfMaxTextWidth >= margin) {
+                if(endX + halfMaxTextWidth <= xLastText) {
+                    let wp = plan.waypoints[i + 1]
+                    drawings.push(
+                        ctext(y + longLine + fontStartY, Math.round(endX), wp.name)
+                    )
+                    xLastText = endX - halfMaxTextWidth
+                }
+            } else {
+                if(endX + 2 * halfMaxTextWidth <= xLastText) {
+                    let wp = plan.waypoints[i + 1]
+                    drawings.push(
+                        ltext(y + longLine + fontStartY, Math.round(endX), wp.name)
+                    )
+                    xLastText = endX
+                }
+            }
+
+            if(leg.gs !== null) {
+                let m = 2
+                while(true) {
+                    let tick = startX - leg.gs * m / 60 * KM_PER_NM * CM_PER_KM * PX_PER_CM * MAP_SCALE
+                    if(tick > endX) {
+                        drawings.push(
+                            ver(y, Math.round(tick), shortLine),
+                            ctext(y + shortLine + fontStartY, Math.round(tick), m.toString())
+                        )
+                        m += 2
+                    } else {
+                        break
+                    }
+                }
+            }
+
+            x = endX
+        }
+        x = Math.floor(a4_landscape_width - margin)
+        y += 3 * gridHeight
+        xLastText = Number.MAX_VALUE
+        start = true
+    }
+
+    pages.push({
+        height: a4_landscape_height,
+        width: a4_landscape_width,
+        drawings: drawings
+    })
 
     return pages
 }
@@ -1069,6 +1220,10 @@ function trip(tripPage: TripPage) {
             div(numberInput(tripPage.fuelFlow)),
         ),
         div(sub(map(tripPage.firstStop, fs => arr(firstStopElement(tripPage, fs))))),
+        div(clazz("print-info"),
+            text("Screen: 27 inch"),br(),
+            text("Map: 1:250 000")
+        ),
         div(clazz("calculate-button"), button(text("Calculate"), onklick(() => tripPage.calculate()))),
         div(canvas(id("test-canvas"), width(0), height(0)))
     ])
@@ -1209,6 +1364,7 @@ interface CalculatedWaypoint {
 }
 
 interface CalculatedLeg {
+    leg: Leg
     mh: number | null
     mt: number | null
     gs: number | null
@@ -1280,6 +1436,7 @@ function calculate(tripPlan: TripPlan): CalculatedTrip {
                 }
 
                 return {
+                    leg: leg,
                     mh: mh,
                     mt: mt,
                     gs: gs,
@@ -1339,7 +1496,7 @@ interface Txt {
     start: Coordinate
     fontSize: number // px
     text: string
-    align: "left" | "right"
+    align: "left" | "center" | "right"
 }
 
 interface Color {
@@ -1395,6 +1552,7 @@ function draw(canvas: HTMLCanvasElement, pages: Page[]) {
 
         ctx.fillStyle = "white"
         ctx.fillRect(0, 0, Math.ceil(scale*page.width), Math.ceil(scale * page.height))
+        ctx.fillStyle = "black"
 
         page.drawings.forEach((drawing) => {
             if(drawing.type === "line") {
@@ -1434,10 +1592,11 @@ function draw(canvas: HTMLCanvasElement, pages: Page[]) {
                 }
                 ctx.stroke()
             } else if(drawing.type === "text") {
-                ctx.beginPath()
-                ctx.font = "normal " + scale * drawing.fontSize + "px Arial"
+                ctx.font = "normal " + scale * drawing.fontSize + "px Times New Roman"
                 if(drawing.align == "left") {
                     ctx.textAlign = "left"
+                } else if(drawing.align == "center") {
+                    ctx.textAlign = "center"
                 } else if(drawing.align == "right") {
                     ctx.textAlign = "right"
                 } else {
@@ -2006,6 +2165,10 @@ function type(type: string): Component {
 
 function canvas(...mods: Component[]): Component {
     return tag("canvas", ...mods)
+}
+
+function br(...mods: Component[]): Component {
+    return tag("br", ...mods)
 }
 
 function tag(tag: string, ...mods: Component[]): Component {

@@ -137,6 +137,10 @@ div.flightplan > div.last {
     border-bottom-width: 2px;
 }
 
+div.print-info {
+    margin-top: 20px;
+}
+
 div.calculate-button {
     margin-top: 20px;
 }
