@@ -235,6 +235,21 @@ class TripPage {
                                     return null
                                 } else {
                                     let leg = flight.legs[idx]
+
+                                    let mapNote = (idx: number): NoteElement => {
+                                        if(idx >= leg.notes.length) {
+                                            return null
+                                        } else {
+                                            let note = leg.notes[idx];
+                                            return new NoteElement(
+                                                mapNote(idx + 1),
+                                                new Value(note.time),
+                                                new Value(note.note),
+                                                new Value(note.number)
+                                            )
+                                        }
+                                    }
+
                                     let waypoint = mapWaypoint(idx + 1)
                                     return new LegElement(
                                             waypoint,
@@ -245,7 +260,7 @@ class TripPage {
                                             new Value(leg.altitude),
                                             new Value(leg.msa),
                                             new Value(leg.ete),
-                                            null // TODO
+                                            mapNote(0)
                                         )
                                 }
                             }
@@ -606,10 +621,14 @@ function printTrip(trip: CalculatedTrip): Page[] {
             colorBox(2, 0, 1, 8.5, lightGrey)
         )
         // First the colors: Waypoints
+        let y = 3
         for (let i = 0; i < plan.waypoints.length; i++) {
             drawings.push(
-                colorBox(2 * i + 3, 0, 1, 8.5, wpColors[i % wpColors.length])
+                colorBox(y, 0, 1, 8.5, wpColors[i % wpColors.length])
             )
+            if (i < plan.legs.length) {
+                y += 2 + plan.legs[i].notes.length
+            }
         }
 
         // Header
@@ -638,58 +657,78 @@ function printTrip(trip: CalculatedTrip): Page[] {
         ]);
 
 
+        y = 3
         for (let i = 0; i < plan.legs.length; i++) {
             let waypoint = plan.waypoints[i]
             let leg = plan.legs[i]
             drawings.push(...[
-                hor(2 * i + 4, 0, 8.5, 1, 0, 0),
-                hor(2 * i + 5, 0, 8.5, 1, 0, 0),
+                hor(y + 1, 0, 8.5, 1, 0, 0),
+                hor(y + 2, 0, 8.5, 1, 0, 0),
 
-                ver(2 * i + 3, 0, 2, 2, 0, 0),
-                ver(2 * i + 4, 1, 1, 1, 0, 0),
-                ver(2 * i + 4, 2, 1, 2, 0, 0),
-                ver(2 * i + 3, 3, 2, 2, 0, 0),
-                ver(2 * i + 3, 4, 2, 1, 0, 0),
-                ver(2 * i + 3, 5, 2, 2, 0, 0),
-                ver(2 * i + 3, 6, 2, 2, 0, 0),
-                ver(2 * i + 3, 7.5, 2, 1, 0, 0),
-                ver(2 * i + 3, 8.5, 2, 2, 0, 0),
+                ver(y, 0, 2, 2, 0, 0),
+                ver(y + 1, 1, 1, 1, 0, 0),
+                ver(y + 1, 2, 1, 2, 0, 0),
+                ver(y, 3, 2, 2, 0, 0),
+                ver(y, 4, 2, 1, 0, 0),
+                ver(y, 5, 2, 2, 0, 0),
+                ver(y, 6, 2, 2, 0, 0),
+                ver(y, 7.5, 2, 1, 0, 0),
+                ver(y, 8.5, 2, 2, 0, 0),
 
-                ltext(2 * i + 3, 0, waypoint.name),
-                rtext(2 * i + 3, 4, formatInt(waypoint.alt)),
-                rtext(2 * i + 3, 6, formatFuel(waypoint.fuel)),
-                ltext(2 * i + 3, 6, formatTime(waypoint.eta)),
+                ltext(y, 0, waypoint.name),
+                rtext(y, 4, formatInt(waypoint.alt)),
+                rtext(y, 6, formatFuel(waypoint.fuel)),
+                ltext(y, 6, formatTime(waypoint.eta)),
 
-                rtext(2 * i + 4, 1, formatInt(leg.mh)),
-                rtext(2 * i + 4, 2, formatInt(leg.mt)),
-                rtext(2 * i + 4, 3, formatInt(leg.gs)),
-                rtext(2 * i + 4, 4, formatInt(leg.alt)),
-                rtext(2 * i + 4, 5, formatInt(leg.msa)),
-                rtext(2 * i + 4, 6, formatFuel(leg.fuel)),
-                rtext(2 * i + 4, 7.5, formatDuration(leg.ete))
+                rtext(y + 1, 1, formatInt(leg.mh)),
+                rtext(y + 1, 2, formatInt(leg.mt)),
+                rtext(y + 1, 3, formatInt(leg.gs)),
+                rtext(y + 1, 4, formatInt(leg.alt)),
+                rtext(y + 1, 5, formatInt(leg.msa)),
+                rtext(y + 1, 6, formatFuel(leg.fuel)),
+                rtext(y + 1, 7.5, formatDuration(leg.ete))
             ])
+            y += 2
+            for (let n = 0; n < leg.notes.length; n++) {
+                let note = leg.notes[n]
+                drawings.push(
+                    ver(y, 0, 2, 2, 0, 0),
+                    ver(y, 8.5, 2, 2, 0, 0),
+
+                    rtext(y, 2, formatDuration(note.time)),
+                    ltext(y, 2, note.note),
+                    ltext(y, 6, note.number),
+                )
+                y++
+            }
+            if(leg.notes.length > 0) {
+                drawings.push(
+                    hor(y, 0, 8.5, 1, 0, 0)
+                )
+            }
         }
 
         let lastWpIdx = plan.legs.length;
         let lastWaypoint = plan.waypoints[lastWpIdx]
         drawings.push(...[
-            hor(2 * lastWpIdx + 4, 0, 8.5, 2, -1, 1),
+            hor(y + 1, 0, 8.5, 2, -1, 1),
 
-            ver(2 * lastWpIdx + 3, 0, 1, 2, 0, 1),
-            ver(2 * lastWpIdx + 3, 3, 1, 2, 0, 0),
-            ver(2 * lastWpIdx + 3, 4, 1, 1, 0, 0),
-            ver(2 * lastWpIdx + 3, 5, 1, 2, 0, 0),
-            ver(2 * lastWpIdx + 3, 6, 1, 2, 0, 0),
-            ver(2 * lastWpIdx + 3, 7.5, 1, 1, 0, 0),
-            ver(2 * lastWpIdx + 3, 8.5, 1, 2, 0, 1),
+            ver(y, 0, 1, 2, 0, 1),
+            ver(y, 3, 1, 2, 0, 0),
+            ver(y, 4, 1, 1, 0, 0),
+            ver(y, 5, 1, 2, 0, 0),
+            ver(y, 6, 1, 2, 0, 0),
+            ver(y, 7.5, 1, 1, 0, 0),
+            ver(y, 8.5, 1, 2, 0, 1),
 
-            ltext(2 * lastWpIdx + 3, 0, lastWaypoint.name),
-            rtext(2 * lastWpIdx + 3, 4, formatInt(lastWaypoint.alt)),
-            rtext(2 * lastWpIdx + 3, 6, formatFuel(lastWaypoint.fuel)),
-            ltext(2 * lastWpIdx + 3, 7.5, formatTime(lastWaypoint.eta)),
+            ltext(y, 0, lastWaypoint.name),
+            rtext(y, 4, formatInt(lastWaypoint.alt)),
+            rtext(y, 6, formatFuel(lastWaypoint.fuel)),
+            ltext(y, 7.5, formatTime(lastWaypoint.eta)),
         ])
+        y+= 2
 
-        let firstLine = 2 * lastWpIdx + 6 + 1
+        let firstLine = y + 1 + (y % 2)
         for (let i = firstLine; i <= 33; i += 2) {
             drawings.push(
                 dotted(i, 0, 8.5, 1, 0, 0),
@@ -1107,8 +1146,8 @@ class LegElement {
                 newNote = new NoteElement(
                     this.firstNote,
                     new Value(null),
-                    new Value(null),
-                    new Value(null),
+                    new Value(""),
+                    new Value(""),
                 )
             } else {
                 newNote = this.firstNote.insertNoteAfter(noteElement)
@@ -1173,8 +1212,8 @@ class NoteElement {
             let newNote = new NoteElement(
                 this.next,
                 new Value(null),
-                new Value(null),
-                new Value(null),
+                new Value(""),
+                new Value(""),
             )
             return this.withNext(newNote)
         } else {
@@ -1341,7 +1380,35 @@ function renderPostWaypointElement(
             div(clazz("leg-msa"), numberInput(legElement.msa)),
             div(clazz("leg-et"), durationInput(legElement.ete)),
             div(clazz("leg-action"), button(text("Insert Waypoint"), onklick(() => { tripPage.insertWaypointAfter(flightElement, waypointElement) }))),
+            div(clazz("note-pre")),
+            div(clazz("note-insert"), button(text("Insert Note"), onklick(() => { tripPage.insertNoteAfter(flightElement, legElement, null) }))),
+            div(clazz("note-action")),
+            ...renderLegNotes(tripPage, flightElement, legElement, legElement.firstNote),
             ...renderWaypointElement(tripPage, flightElement, legElement.next)
+        ]
+    }
+}
+
+function renderLegNotes(
+    tripPage: TripPage,
+    flightElement: FlightElement,
+    legElement: LegElement,
+    noteElement: NoteElement | null
+): Component[] {
+    if(noteElement === null) {
+        return []
+    } else {
+        return [
+            div(clazz("note-pre")),
+            div(clazz("note-time"), durationInput(noteElement.time)),
+            div(clazz("note-note"), textInput(value(noteElement.note))),
+            div(clazz("note-number"), textInput(value(noteElement.number))),
+            div(clazz("note-post")),
+            div(clazz("note-action"), button(text("Delete"), onklick(() => { tripPage.deleteNote(flightElement, legElement, noteElement) }))),
+            div(clazz("note-pre")),
+            div(clazz("note-insert"), button(text("Insert Note"), onklick(() => { tripPage.insertNoteAfter(flightElement, legElement, noteElement) }))),
+            div(clazz("note-action")),
+            ...renderLegNotes(tripPage, flightElement, legElement, noteElement.next)
         ]
     }
 }
@@ -1373,6 +1440,7 @@ interface CalculatedLeg {
     msa: number | null
     fuel: number | null
     ete: Duration | null
+    notes: Note[]
 }
 
 const RADIANS_PER_DEGREE = 2 * Math.PI / 360
@@ -1445,6 +1513,7 @@ function calculate(tripPlan: TripPlan): CalculatedTrip {
                     msa: leg.msa,
                     fuel: fuel,
                     ete: ete,
+                    notes: leg.notes
                 }
             })
         }
@@ -1961,8 +2030,8 @@ interface Leg  {
 
 interface Note {
     time: Duration | null
-    note: string | null
-    number: string | null
+    note: string
+    number: string
 }
 
 interface Tombstone extends VersionedEntity {

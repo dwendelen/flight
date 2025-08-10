@@ -76,25 +76,25 @@ div.flightplan > div.action-header {
 div.flightplan > div.action {
     grid-column-start: 1;
     grid-column-end: 8;
-    border-width: 0 2px 1px 2px;
+    border-width: 0 2px 0 2px;
 }
 
 div.flightplan > div.wp-name {
     grid-column-start: 1;
     grid-column-end: 5;
-    border-width: 0 2px 1px 2px;
+    border-width: 1px 2px 1px 2px;
 }
 
 div.flightplan > div.wp-alt {
-    border-width: 0 1px 1px 0;
+    border-width: 1px 1px 1px 0;
 }
 
 div.flightplan > div.wp-msa {
-    border-width: 0 2px 1px 0;
+    border-width: 1px 2px 1px 0;
 }
 
 div.flightplan > div.wp-et {
-    border-width: 0 2px 1px 0;
+    border-width: 1px 2px 1px 0;
 }
 
 div.flightplan > div.wp-action {
@@ -130,6 +130,40 @@ div.flightplan > div.leg-et {
 }
 
 div.flightplan > div.leg-action {
+    border-style: none;
+}
+
+div.flightplan > div.note-pre {
+    border-width: 0 0 0 2px;
+}
+
+div.flightplan > div.note-insert {
+    border-width: 0 2px 0 0;
+    grid-column-start: 2;
+    grid-column-end: 8;
+}
+
+div.flightplan > div.note-time {
+    border-width: 1px 1px 1px 1px;
+}
+
+div.flightplan > div.note-note {
+    border-width: 1px 1px 1px 0;
+    grid-column-start: 3;
+    grid-column-end: 6;
+}
+
+div.flightplan > div.note-number {
+    border-width: 1px 1px 1px 0;
+}
+
+div.flightplan > div.note-post {
+    border-width: 0 2px 0 0;
+    grid-column-start: 7;
+    grid-column-end: 8;
+}
+
+div.flightplan > div.note-action {
     border-style: none;
 }
 
