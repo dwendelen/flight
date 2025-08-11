@@ -6,6 +6,7 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import se.daan.flight.pdf.api.Page
 import se.daan.flight.pdf.generate
 
@@ -20,6 +21,7 @@ class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> 
         val tableName = System.getenv("FLIGHT_TABLE_NAME")!!
         val dynamoClient = DynamoDbClient.create()
         objectMapper = ObjectMapper()
+            .registerKotlinModule()
     }
 
     @OptIn(ExperimentalEncodingApi::class)

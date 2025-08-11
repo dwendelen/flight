@@ -443,12 +443,34 @@ class TripPage {
         this.firstStop.set(newFirstStop)
     }
 
-    calculate() {
+    generateFakePdf() {
         let tripPlan = this.toTripPlan(-1, -1, -1)
         let calculated = calculate(tripPlan)
         let pages = printTrip(calculated)
         draw(document.getElementById("test-canvas") as HTMLCanvasElement, pages);
-        console.log(JSON.stringify(pages));
+    }
+
+    generatePdf() {
+        let tripPlan = this.toTripPlan(-1, -1, -1)
+        let calculated = calculate(tripPlan)
+        let pages = printTrip(calculated)
+
+        window.fetch("https://api.dev.flight.daan.se/pdf", {
+            method: 'POST',
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(pages)
+        }).then(resp => {
+            if(resp.ok) {
+                return resp.blob()
+            } else {
+                return Promise.reject(resp.status)
+            }
+        }).then(blob => {
+            let url = window.URL.createObjectURL(blob)
+            window.open(url)
+        })
     }
 }
 
@@ -1264,7 +1286,11 @@ function trip(tripPage: TripPage) {
             text("Screen: 27 inch"),br(),
             text("Map: 1:250 000")
         ),
-        div(clazz("calculate-button"), button(text("Calculate"), onklick(() => tripPage.calculate()))),
+        div(
+            clazz("calculate-button"),
+            button(text("Generate Fake Pdf"), onklick(() => tripPage.generateFakePdf())),
+            button(text("Generate Pdf"), onklick(() => tripPage.generatePdf()))
+        ),
         div(canvas(id("test-canvas"), width(0), height(0)))
     ])
 }
