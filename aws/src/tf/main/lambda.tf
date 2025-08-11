@@ -8,7 +8,7 @@ resource "aws_lambda_function" "main" {
   package_type = "Zip"
   filename = "../../../build/layers/flight.zip"
   source_code_hash = filebase64sha256("../../../build/layers/flight.zip")
-  handler = "se.daan.tea.Handler::handleRequest"
+  handler = "se.daan.flight.Handler::handleRequest"
   layers = [aws_lambda_layer_version.main.arn]
   timeout = 30
   memory_size = 1024 # We don't need the memory, we do need the cpu
