@@ -1,3 +1,6 @@
 .idea
 flight.js
 out
+*/build
+.gradle
+aws/src/tf/*/.terraform

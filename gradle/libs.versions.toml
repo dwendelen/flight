@@ -1,0 +1,28 @@
+[versions]
+kotlin = "1.9.23"
+logback = "1.5.6"
+aws-bom = "2.25.49"
+junit = "5.8.2"
+testcontainers = "1.19.8"
+assertj = "3.25.3"
+pdfbox = "3.0.5"
+
+[libraries]
+logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+aws-bom = { module = "software.amazon.awssdk:bom", version.ref="aws-bom" }
+aws-dynamodb = { module = "software.amazon.awssdk:dynamodb" }
+aws-sso = { module = "software.amazon.awssdk:sso" }
+
+pdfbox = { module = "org.apache.pdfbox:pdfbox", version.ref = "pdfbox" }
+
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit5", version.ref = "kotlin" }
+junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junit" }
+testcontainers-core = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
+testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
+assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
+
+[plugins]
+kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
