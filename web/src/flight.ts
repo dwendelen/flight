@@ -754,7 +754,7 @@ function printTrip(trip: CalculatedTrip): Page[] {
             ltext(y, 0, lastWaypoint.name),
             rtext(y, 4, formatInt(lastWaypoint.alt)),
             rtext(y, 6, formatFuel(lastWaypoint.fuel)),
-            ltext(y, 7.5, formatTime(lastWaypoint.eta)),
+            ltext(y, 6, formatTime(lastWaypoint.eta)),
         ])
         y+= 2
 
@@ -1490,6 +1490,7 @@ interface CalculatedPlan {
 
 interface CalculatedWaypoint {
     name: string
+    type: WaypointType | null
     alt: number | null
     fuel: number | null
     eta: Time | null
@@ -1519,76 +1520,138 @@ function calculate(tripPlan: TripPlan): CalculatedTrip {
     }
 
     let plans: CalculatedPlan[] = tripPlan.flightPlans.map(fp => {
+        let waypoints = fp.waypoints.map(wp => {
+            return {
+                type: wp.type,
+                name: wp.name,
+                alt: wp.altitude,
+                fuel: null,
+                eta: wp.eta
+            }
+        });
+        let legs = fp.legs.map(leg => {
+            let mt: number | null
+            if(tripPlan.variation != null && leg.trueTrack != null) {
+                mt = leg.trueTrack - tripPlan.variation;
+            } else {
+                mt = null
+            }
+
+            let th: number | null
+            let gs: number | null
+            if(leg.trueTrack != null && tripPlan.tas != null && leg.windDirection != null && leg.windVelocity != null) {
+                let relative_wind_radians = RADIANS_PER_DEGREE * (leg.windDirection + 180 - leg.trueTrack);
+                let cross = leg.windVelocity * Math.sin(relative_wind_radians)
+                let tail = leg.windVelocity * Math.cos(relative_wind_radians)
+                let drift_radians = Math.asin(cross/tripPlan.tas)
+                gs = tripPlan.tas * Math.cos(drift_radians) + tail
+                th = leg.trueTrack - (drift_radians * DEGREES_PER_RADIAN)
+            } else {
+                gs = null
+                th = null
+            }
+
+            let mh: number | null
+            if(tripPlan.variation != null && th != null) {
+                mh = th - tripPlan.variation
+            } else {
+                mh = null
+            }
+
+            let ete: Duration | null
+            if(leg.ete == null) {
+                if (gs != null && leg.distance != null) {
+                    ete = leg.distance / gs
+                } else {
+                    ete = null
+                }
+            } else {
+                ete = leg.ete
+            }
+
+            let fuel: number | null
+            if(ete != null && fuelFlow != null) {
+                fuel = fuelFlow * ete
+            } else {
+                fuel = null
+            }
+
+            return {
+                leg: leg,
+                mh: mh,
+                mt: mt,
+                gs: gs,
+                alt: leg.altitude,
+                msa: leg.msa,
+                fuel: fuel,
+                ete: ete,
+                notes: leg.notes
+            }
+        });
+        // Calculate ETA
+        let nbFixedETAs = waypoints
+            .filter(wp => wp.eta != null)
+            .length
+        if(nbFixedETAs == 1) {
+            let idx = waypoints
+                .findIndex(wp => wp.eta != null);
+            for (let i = idx + 1; i < waypoints.length; i++) {
+                let extra = 0
+                if(waypoints[i - 1].type === "take-off") {
+                    // TODO if null
+                    extra += tripPlan.circuitTime + tripPlan.preTakeoffTime
+                }
+                if(waypoints[i].type === "landing") {
+                    // TODO if null
+                    extra += tripPlan.circuitTime + tripPlan.postLandingTime
+                }
+                if(legs[i - 1].ete != null) {
+                    waypoints[i].eta = waypoints[i - 1].eta + legs[i - 1].ete + extra
+                }
+            }
+            for (let i = idx - 1; i >= 0; i--) {
+                let extra = 0
+                if(waypoints[i].type === "take-off") {
+                    // TODO if null
+                    extra += tripPlan.circuitTime + tripPlan.preTakeoffTime
+                }
+                if(waypoints[i + 1].type === "landing") {
+                    // TODO if null
+                    extra += tripPlan.circuitTime + tripPlan.postLandingTime
+                }
+                if(legs[i].ete != null) {
+                    waypoints[i].eta = waypoints[i + 1].eta - legs[i].ete - extra
+                }
+            }
+        }
         return {
-            waypoints: fp.waypoints.map(wp => {
-                return {
-                    name: wp.name,
-                    alt: wp.altitude,
-                    fuel: null,
-                    eta: wp.eta
-                }
-            }),
-            legs: fp.legs.map(leg => {
-                let mt: number | null
-                if(tripPlan.variation != null && leg.trueTrack != null) {
-                    mt = leg.trueTrack - tripPlan.variation;
-                } else {
-                    mt = null
-                }
-
-                let th: number | null
-                let gs: number | null
-                if(leg.trueTrack != null && tripPlan.tas != null && leg.windDirection != null && leg.windVelocity != null) {
-                    let relative_wind_radians = RADIANS_PER_DEGREE * (leg.windDirection + 180 - leg.trueTrack);
-                    let cross = leg.windVelocity * Math.sin(relative_wind_radians)
-                    let tail = leg.windVelocity * Math.cos(relative_wind_radians)
-                    let drift_radians = Math.asin(cross/tripPlan.tas)
-                    gs = tripPlan.tas * Math.cos(drift_radians) + tail
-                    th = leg.trueTrack - (drift_radians * DEGREES_PER_RADIAN)
-                } else {
-                    gs = null
-                    th = null
-                }
-
-                let mh: number | null
-                if(tripPlan.variation != null && th != null) {
-                    mh = th - tripPlan.variation
-                } else {
-                    mh = null
-                }
-
-                let ete: Duration | null
-                if(leg.ete == null) {
-                    if (gs != null && leg.distance != null) {
-                        ete = leg.distance / gs
-                    } else {
-                        ete = null
-                    }
-                } else {
-                    ete = leg.ete
-                }
-
-                let fuel: number | null
-                if(ete != null && fuelFlow != null) {
-                    fuel = fuelFlow * ete
-                } else {
-                    fuel = null
-                }
-
-                return {
-                    leg: leg,
-                    mh: mh,
-                    mt: mt,
-                    gs: gs,
-                    alt: leg.altitude,
-                    msa: leg.msa,
-                    fuel: fuel,
-                    ete: ete,
-                    notes: leg.notes
-                }
-            })
+            waypoints: waypoints,
+            legs: legs
         }
     })
+
+    // TODO null-checks
+    let fuel = fuelFlow * tripPlan.finalReserve
+    for (let i = plans.length - 1; i >= 0; i--) {
+        let plan = plans[i]
+        let waypoints = plan.waypoints;
+
+        waypoints[waypoints.length - 1].fuel = fuel
+
+        for (let j = plan.waypoints.length - 2; j >= 0; j--) {
+            let extra = 0
+            if(waypoints[j].type === "take-off") {
+                // TODO if null
+                extra += fuelFlow * tripPlan.circuitTime + tripPlan.preTakeoffFuel
+            }
+            if(waypoints[j + 1].type === "landing") {
+                // TODO if null
+                extra += fuelFlow * tripPlan.circuitTime + tripPlan.postLandingFuel
+            }
+            fuel = fuel + plan.legs[j].fuel + extra
+            waypoints[j].fuel = fuel
+        }
+    }
 
     return {
         powerSetting: tripPlan.powerSetting,
@@ -2302,7 +2365,13 @@ function h1(...mods: Component[]): Component {
 
 function dropdown<T>(value: Value<T>, options: T[], toString: (option: T) => string): Component {
     let opts = options.map(o => {
-        return tag("option", text(toString(o)))
+        let selected = (elem: HTMLOptionElement) => {
+            if(value.get() === o) {
+                elem.selected = true
+            }
+            return () => {}
+        }
+        return tag("option", text(toString(o)), selected)
     })
     let onChange = (elem: HTMLSelectElement) => {
         elem.onchange = () => {
