@@ -224,6 +224,7 @@ class TripPage {
                                 let leg = mapLeg(idx)
                                 return new WaypointElement(
                                     leg,
+                                    new Value(waypoint.type),
                                     new Value(waypoint.name),
                                     new Value(waypoint.altitude),
                                     new Value(waypoint.eta)
@@ -336,7 +337,7 @@ class TripPage {
                     if (waypoint !== null) {
                         waypoints.push({
                             name: waypoint.name.get(),
-                            type: "simple",
+                            type: waypoint.type.get(),
                             altitude: waypoint.altitude.get(),
                             eta: waypoint.eta.get()
                         })
@@ -392,7 +393,14 @@ class TripPage {
             powerSetting: this.powerSetting.get(),
             ias: this.ias.get(),
             tas: this.tas.get(),
-            fuelFlow: this.fuelFlow.get()
+            fuelFlow: this.fuelFlow.get(),
+            fuelContingency: 0.05, // TODO
+            finalReserve: 0.5, // TODO
+            preTakeoffFuel: 2, // TODO
+            postLandingFuel: 1, // TODO
+            preTakeoffTime: 0.2, // TODO
+            circuitTime: 4/60, // TODO
+            postLandingTime: 0.1, // TODO
         };
     }
 
@@ -470,7 +478,7 @@ class TripPage {
         }).then(blob => {
             let url = window.URL.createObjectURL(blob)
             window.open(url)
-        })
+        }) // TODO failure
     }
 }
 
@@ -1066,7 +1074,7 @@ class FlightElement {
 }
 
 function newWaypointElement(next: LegElement | null): WaypointElement {
-    return new WaypointElement(next, new Value("New Waypoint"), new Value(null), new Value(null))
+    return new WaypointElement(next, new Value("simple"), new Value("New Waypoint"), new Value(null), new Value(null))
 }
 
 function newLegElement(next: WaypointElement): LegElement {
@@ -1086,6 +1094,7 @@ function newLegElement(next: WaypointElement): LegElement {
 class WaypointElement {
     constructor(
         public readonly next: LegElement | null,
+        public readonly type: Value<WaypointType>,
         public readonly name: Value<string>,
         public readonly altitude: Value<number | null>,
         public readonly eta: Value<Time | null>
@@ -1100,7 +1109,7 @@ class WaypointElement {
         } else {
             newLeg = this.next.insertWaypointAfter(waypointElement);
         }
-        return new WaypointElement(newLeg, this.name, this.altitude, this.eta)
+        return new WaypointElement(newLeg, this.type, this.name, this.altitude, this.eta)
     }
 
     deleteWaypoint(waypointElement: WaypointElement): WaypointElement {
@@ -1115,19 +1124,19 @@ class WaypointElement {
                 return this
             } else {
                 let newLeg = this.next.deleteWaypoint(waypointElement)
-                return new WaypointElement(newLeg, this.name, this.altitude, this.eta)
+                return new WaypointElement(newLeg, this.type, this.name, this.altitude, this.eta)
             }
         }
     }
 
     insertNoteAfter(legElement: LegElement, noteElement: NoteElement | null): WaypointElement {
         let newLeg = this.next.insertNoteAfter(legElement, noteElement);
-        return new WaypointElement(newLeg, this.name, this.altitude, this.eta)
+        return new WaypointElement(newLeg, this.type, this.name, this.altitude, this.eta)
     }
 
     deleteNote(legElement: LegElement, noteElement: NoteElement): WaypointElement {
         let newLeg = this.next.deleteNote(legElement, noteElement);
-        return new WaypointElement(newLeg, this.name, this.altitude, this.eta)
+        return new WaypointElement(newLeg, this.type, this.name, this.altitude, this.eta)
     }
 }
 
@@ -1271,6 +1280,16 @@ function trip(tripPage: TripPage) {
         textInput(value(tripPage.name)),
         h1(text("Plan")),
         div(
+            clazz("parameters"),
+            div(text("Contingency Fuel")), div(text("5%")),
+            div(text("Final Reserve")), div(text("30:00")),
+            div(text("Pre-Take-off Fuel")), div(text("2")),
+            div(text("Post-Landing Fuel")), div(text("1")),
+            div(text("Pre-Take-off Time")), div(text("12:00")),
+            div(text("Circuit Time")), div(text("04:00")),
+            div(text("Post-Landing Time")), div(text("06:00")),
+        ),
+        div(
             clazz("perfo"),
             div(text("Pwr")),
             div(text("IAS")),
@@ -1357,6 +1376,7 @@ function firstWaypointOrInsertStop(
         )
     } else {
         return div(clazz("flightplan"),
+            div(clazz("type-header")),
             div(clazz("tt-header"), text("TT")),
             div(clazz("dist-header"), text("Dist")),
             div(clazz("wind-header"), text("Wind")),
@@ -1365,8 +1385,24 @@ function firstWaypointOrInsertStop(
             div(clazz("et-header"), text("ET")),
             div(clazz("action-header")),
             div(clazz("action"), button(text("Insert Waypoint"), onklick(() => { tripPage.insertWaypointAfter(flightElement, null) }))),
+            div(clazz("wp-action")), // TODO new class
             ...renderWaypointElement(tripPage, flightElement, firstWaypoint)
         )
+    }
+}
+
+function formatWaypointType(waypointType: WaypointType): string {
+    switch (waypointType) {
+        case "take-off":
+            return "T-O"
+        case "simple":
+            return ""
+        case "rate-one":
+            return "R-1"
+        case "landing":
+            return "LND"
+        default:
+            throw "Unknown waypoint type " + waypointType
     }
 }
 
@@ -1376,6 +1412,7 @@ function renderWaypointElement(
     waypointElement: WaypointElement
 ): Component[] {
     return [
+        div(clazz("wp-type"), dropdown<WaypointType>(waypointElement.type, ["simple", "rate-one", "take-off", "landing"], t => formatWaypointType(t))),
         div(clazz("wp-name"), textInput(value(waypointElement.name))),
         div(clazz("wp-alt"), numberInput(waypointElement.altitude)),
         div(clazz("wp-msa")),
@@ -1398,6 +1435,7 @@ function renderPostWaypointElement(
         ]
     } else {
         return [
+            div(clazz("leg-type")),
             div(clazz("leg-tt"), numberInput(legElement.trueTrack, 0, 360)),
             div(clazz("leg-dist"), numberInput(legElement.distance, 0)),
             div(clazz("leg-wind-dir"), numberInput(legElement.windDirection, 0, 360)),
@@ -1473,6 +1511,13 @@ const RADIANS_PER_DEGREE = 2 * Math.PI / 360
 const DEGREES_PER_RADIAN = 1 / RADIANS_PER_DEGREE
 
 function calculate(tripPlan: TripPlan): CalculatedTrip {
+    let fuelFlow: number | null
+    if(tripPlan.fuelFlow != null && tripPlan.fuelContingency != null) {
+        fuelFlow = tripPlan.fuelFlow * (1 + tripPlan.fuelContingency)
+    } else {
+        fuelFlow = null
+    }
+
     let plans: CalculatedPlan[] = tripPlan.flightPlans.map(fp => {
         return {
             waypoints: fp.waypoints.map(wp => {
@@ -1524,8 +1569,8 @@ function calculate(tripPlan: TripPlan): CalculatedTrip {
                 }
 
                 let fuel: number | null
-                if(ete != null && tripPlan.fuelFlow != null) {
-                    fuel = tripPlan.fuelFlow * ete
+                if(ete != null && fuelFlow != null) {
+                    fuel = fuelFlow * ete
                 } else {
                     fuel = null
                 }
@@ -2016,6 +2061,13 @@ interface TripPlan extends VersionedEntity {
     tas: number | null
     fuelFlow: number | null
     variation: number | null // TODO input
+    fuelContingency: number | null // TODO input
+    finalReserve: Duration | null // TODO input
+    preTakeoffFuel: number | null // TODO input
+    postLandingFuel: number | null // TODO input
+    preTakeoffTime: Duration | null // TODO input
+    circuitTime:  Duration | null // TODO input
+    postLandingTime:  Duration | null // TODO input
     stops: Stop[]
     flightPlans: FlightPlan[]
 }
@@ -2246,6 +2298,21 @@ function button(...mods: Component[]): Component {
 
 function h1(...mods: Component[]): Component {
     return tag("h1", ...mods)
+}
+
+function dropdown<T>(value: Value<T>, options: T[], toString: (option: T) => string): Component {
+    let opts = options.map(o => {
+        return tag("option", text(toString(o)))
+    })
+    let onChange = (elem: HTMLSelectElement) => {
+        elem.onchange = () => {
+            value.set(options[elem.selectedIndex])
+        }
+        return () => {
+            elem.onchange = null
+        }
+    }
+    return tag("select", onChange, ...opts)
 }
 
 function input(...mods: Component[]): Component {

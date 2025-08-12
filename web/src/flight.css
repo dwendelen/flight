@@ -8,6 +8,13 @@
     grid-template-columns: 150px 300px;
 }
 
+div.parameters {
+    display: grid;
+    border: none;
+    grid-template-columns: 150px 50px;
+    margin-bottom: 20px;
+}
+
 div.perfo {
     display: grid;
     border: 1px;
@@ -26,10 +33,9 @@ div.perfo input {
     outline: none;
 }
 
-
 div.flightplan {
     display: grid;
-    grid-template-columns: 50px 50px 50px 50px 50px 50px 50px 150px;
+    grid-template-columns: 50px 50px 50px 50px 50px 50px 50px 50px 150px;
     margin-left: 20px;
 }
 
@@ -43,8 +49,19 @@ div.flightplan input {
     outline: none;
 }
 
+div.flightplan select {
+    width: 100%;
+    border-style: none;
+    outline: none;
+    background: none;
+}
+
+div.flightplan > div.type-header {
+    border-width: 2px 2px 2px 2px;
+}
+
 div.flightplan > div.tt-header {
-    border-width: 2px 1px 2px 2px;
+    border-width: 2px 1px 2px 0;
 }
 
 div.flightplan > div.dist-header {
@@ -52,8 +69,8 @@ div.flightplan > div.dist-header {
 }
 
 div.flightplan > div.wind-header {
-    grid-column-start: 3;
-    grid-column-end: 5;
+    grid-column-start: 4;
+    grid-column-end: 6;
     border-width: 2px 2px 2px 0;
 }
 
@@ -75,14 +92,18 @@ div.flightplan > div.action-header {
 
 div.flightplan > div.action {
     grid-column-start: 1;
-    grid-column-end: 8;
+    grid-column-end: 9;
     border-width: 0 2px 0 2px;
 }
 
-div.flightplan > div.wp-name {
-    grid-column-start: 1;
-    grid-column-end: 5;
+div.flightplan > div.wp-type {
     border-width: 1px 2px 1px 2px;
+}
+
+div.flightplan > div.wp-name {
+    grid-column-start: 2;
+    grid-column-end: 6;
+    border-width: 1px 2px 1px 0;
 }
 
 div.flightplan > div.wp-alt {
@@ -101,8 +122,12 @@ div.flightplan > div.wp-action {
     border-style: none;
 }
 
+div.flightplan > div.leg-type {
+    border-width: 0 2px 1px 2px;
+}
+
 div.flightplan > div.leg-tt {
-    border-width: 0 1px 1px 2px;
+    border-width: 0 1px 1px 0;
 }
 
 div.flightplan > div.leg-dist {
@@ -135,12 +160,14 @@ div.flightplan > div.leg-action {
 
 div.flightplan > div.note-pre {
     border-width: 0 0 0 2px;
+    /*grid-column-start: 1;*/
+    /*grid-column-end: 3;*/
 }
 
 div.flightplan > div.note-insert {
     border-width: 0 2px 0 0;
     grid-column-start: 2;
-    grid-column-end: 8;
+    grid-column-end: 9;
 }
 
 div.flightplan > div.note-time {
@@ -150,7 +177,7 @@ div.flightplan > div.note-time {
 div.flightplan > div.note-note {
     border-width: 1px 1px 1px 0;
     grid-column-start: 3;
-    grid-column-end: 6;
+    grid-column-end: 7;
 }
 
 div.flightplan > div.note-number {
@@ -159,8 +186,8 @@ div.flightplan > div.note-number {
 
 div.flightplan > div.note-post {
     border-width: 0 2px 0 0;
-    grid-column-start: 7;
-    grid-column-end: 8;
+    grid-column-start: 8;
+    grid-column-end: 9;
 }
 
 div.flightplan > div.note-action {
