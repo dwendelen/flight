@@ -5,23 +5,33 @@ import com.amazonaws.services.lambda.runtime.RequestHandler
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent
 import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ArrayNode
+import com.fasterxml.jackson.databind.node.IntNode
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import se.daan.flight.pdf.api.Page
 import se.daan.flight.pdf.generate
+import se.daan.flight.stream.StreamRepository
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue
+import software.amazon.awssdk.services.dynamodb.model.GetItemRequest
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
 class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
     private val objectMapper: ObjectMapper
+    private val streamRepository: StreamRepository
 
     init {
         val tableName = System.getenv("FLIGHT_TABLE_NAME")!!
         val dynamoClient = DynamoDbClient.create()
+
         objectMapper = ObjectMapper()
             .registerKotlinModule()
+        streamRepository = StreamRepository(dynamoClient, tableName, objectMapper)
     }
 
     @OptIn(ExperimentalEncodingApi::class)
@@ -42,6 +52,54 @@ class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> 
                     "Content-Type" to "application/pdf"
                 )
                 APIGatewayV2HTTPResponse(200, headers, null, null, base64Body, true)
+            }
+            // TODO verify user
+            "GET /users/{user-id}/stream" -> {
+                val start = input.queryStringParameters?.let{ it["start"]}?.toInt() ?: 0
+                val userId = input.pathParameters?.get("user-id")!!
+                input.headers["Authorization"] = "Bearer $userId"
+                val stream = streamRepository.fetchAll(userId, start)
+                APIGatewayV2HTTPResponse(
+                    200,
+                    mapOf("Content-Type" to "application/json"),
+                    null,
+                    null,
+                    objectMapper.writeValueAsString(stream),
+                    false
+                )
+            }
+            // TODO verify user
+            "POST /users/{user-id}/stream" -> {
+                val userId = input.pathParameters?.get("user-id")!!
+                if(input.isBase64Encoded) {
+                    throw UnsupportedOperationException()
+                }
+                val readTree = objectMapper.readTree(input.body)
+                if(readTree !is ArrayNode) {
+                    return APIGatewayV2HTTPResponse(400, null, null, null, null, false)
+                }
+                if(readTree.size() == 0) {
+                    return APIGatewayV2HTTPResponse(200, null, null, null, null, false)
+                }
+
+                val expectedVersion = (streamRepository.fetchLastVersion(userId)?:-1) + 1
+                readTree.asSequence().zip(generateSequence(expectedVersion, Int::inc))
+                    .forEach { (node, exp) ->
+                        if(node !is ObjectNode) {
+                            return APIGatewayV2HTTPResponse(400, null, null, null, null, false)
+                        }
+                        val version = node.get("version")
+                        if(version !is IntNode) {
+                            return APIGatewayV2HTTPResponse(400, null, null, null, null, false)
+                        }
+                        val versionInt = version.intValue()
+                        if(versionInt != exp) {
+                            APIGatewayV2HTTPResponse(409, null, null, null, null, false)
+                        }
+                    }
+
+                streamRepository.save(readTree)
+                APIGatewayV2HTTPResponse(200, null, null, null, null, false)
             }
             else -> throw IllegalArgumentException()
         }
