@@ -94,11 +94,11 @@ class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> 
                         }
                         val versionInt = version.intValue()
                         if(versionInt != exp) {
-                            APIGatewayV2HTTPResponse(409, null, null, null, null, false)
+                            return APIGatewayV2HTTPResponse(409, null, null, null, null, false)
                         }
                     }
 
-                streamRepository.save(readTree)
+                streamRepository.save(userId, readTree)
                 APIGatewayV2HTTPResponse(200, null, null, null, null, false)
             }
             else -> throw IllegalArgumentException()

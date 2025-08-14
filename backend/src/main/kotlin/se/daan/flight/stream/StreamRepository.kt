@@ -16,7 +16,7 @@ class StreamRepository(
         val items = dynamoClient.queryPaginator(
             QueryRequest.builder()
                 .tableName(tableName)
-                .keyConditionExpression("pk = :pk")
+                .keyConditionExpression("pk = :pk AND sk >= :sk")
                 .expressionAttributeValues(
                     mapOf(
                         ":pk" to AttributeValue.fromS("stream-$userId"),
@@ -31,6 +31,7 @@ class StreamRepository(
         ).items().map { item ->
             val sk = item["sk"]!!
             item.remove("pk")
+            item.remove("sk")
             item["version"] = AttributeValue.fromN(sk.s().drop(1))
             map(item)
         }
@@ -61,7 +62,7 @@ class StreamRepository(
             }
     }
 
-    fun save(arrayNode: ArrayNode) {
+    fun save(userId: String, arrayNode: ArrayNode) {
         val items = arrayNode.map { obj ->
             val version = (obj as ObjectNode).get("version")
             val versionInt = (version as IntNode).intValue()
@@ -70,7 +71,7 @@ class StreamRepository(
                 .put(
                     Put.builder()
                         .tableName(tableName)
-                        .item(map(obj) - "version" + ("pk" to AttributeValue.fromN(versionInt.toString())))
+                        .item(map(obj) - "version" + ("pk" to AttributeValue.fromS("stream-$userId")) + ("sk" to AttributeValue.fromS(sortableInt(versionInt))))
                         .conditionExpression("attribute_not_exists(pk)")
                         .build()
                 )
