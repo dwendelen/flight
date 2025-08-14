@@ -100,7 +100,9 @@ class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> 
             "GET /users/{user-id}/stream" -> {
                 val start = input.queryStringParameters?.let{ it["start"]}?.toInt() ?: 0
                 val userId = input.pathParameters?.get("user-id")!!
-                verify(input.headers["Authorization"], userId)
+                if(!verify(input.headers["Authorization"], userId)) {
+                    return resp400()
+                }
                 val stream = streamRepository.fetchAll(userId, start)
                 APIGatewayV2HTTPResponse(
                     200,
@@ -113,7 +115,9 @@ class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> 
             }
             "POST /users/{user-id}/stream" -> {
                 val userId = input.pathParameters?.get("user-id")!!
-                verify(input.headers["Authorization"], userId)
+                if(!verify(input.headers["Authorization"], userId)) {
+                    return resp400()
+                }
                 if(input.isBase64Encoded) {
                     throw UnsupportedOperationException()
                 }
