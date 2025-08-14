@@ -10,28 +10,40 @@ import com.fasterxml.jackson.databind.node.IntNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import se.daan.flight.google.GoogleService
 import se.daan.flight.pdf.api.Page
 import se.daan.flight.pdf.generate
+import se.daan.flight.session.SessionRepository
 import se.daan.flight.stream.StreamRepository
+import se.daan.flight.user.UserRepository
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest
+import java.time.Instant
+import java.util.UUID
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
 class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
     private val objectMapper: ObjectMapper
     private val streamRepository: StreamRepository
+    private val userRepository: UserRepository
+    private val sessionRepository: SessionRepository
+    private val googleService: GoogleService
 
     init {
         val tableName = System.getenv("FLIGHT_TABLE_NAME")!!
+        val googleClientId = System.getenv("FLIGHT_GOOGLE_CLIENT_ID")!!
         val dynamoClient = DynamoDbClient.create()
 
         objectMapper = ObjectMapper()
             .registerKotlinModule()
         streamRepository = StreamRepository(dynamoClient, tableName, objectMapper)
+        userRepository = UserRepository(dynamoClient, tableName)
+        sessionRepository = SessionRepository(dynamoClient, tableName)
+        googleService = GoogleService(googleClientId)
     }
 
     @OptIn(ExperimentalEncodingApi::class)
@@ -53,11 +65,23 @@ class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> 
                 )
                 APIGatewayV2HTTPResponse(200, headers, null, null, base64Body, true)
             }
+            "POST /google-login" -> {
+                val loginRequest = objectMapper.readValue<GoogleLoginRequest>(input.body)
+                val googleLogin = googleService.googleLogin(loginRequest.bearer)
+                if(googleLogin == null) {
+                    return APIGatewayV2HTTPResponse(400, null, null, null, null, false)
+                }
+                val userId = userRepository.getUserIdByGoogleId(googleLogin)
+                val sessionId = UUID.randomUUID().toString()
+                sessionRepository.upsertSession(sessionId, userId, Instant.now())
+                val respJson = objectMapper.writeValueAsString(LoginResponse(sessionId))
+                return APIGatewayV2HTTPResponse(200, null, null, null, respJson, false)
+            }
             // TODO verify user
             "GET /users/{user-id}/stream" -> {
                 val start = input.queryStringParameters?.let{ it["start"]}?.toInt() ?: 0
                 val userId = input.pathParameters?.get("user-id")!!
-                input.headers["Authorization"] = "Bearer $userId"
+                verify(input.headers["Authorization"], userId)
                 val stream = streamRepository.fetchAll(userId, start)
                 APIGatewayV2HTTPResponse(
                     200,
@@ -71,6 +95,7 @@ class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> 
             // TODO verify user
             "POST /users/{user-id}/stream" -> {
                 val userId = input.pathParameters?.get("user-id")!!
+                verify(input.headers["Authorization"], userId)
                 if(input.isBase64Encoded) {
                     throw UnsupportedOperationException()
                 }
@@ -103,5 +128,15 @@ class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> 
             }
             else -> throw IllegalArgumentException()
         }
+    }
+
+    private fun verify(authenticationHeader: String?, userId: String): Boolean {
+        if(authenticationHeader == null || !authenticationHeader.startsWith("Bearer ")) {
+            return false
+        }
+        val sessionId = authenticationHeader.removePrefix("Bearer ")
+        val session = sessionRepository.getSession(sessionId, Instant.now())
+
+        return session?.userId == userId
     }
 }

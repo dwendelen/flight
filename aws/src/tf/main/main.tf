@@ -39,6 +39,10 @@ variable "extra-allowed-origins" {
   default = []
 }
 
+variable "google-client-id" {
+  type = string
+}
+
 locals {
   default-name = "flight-${var.environment}"
   ui-domain-name = var.domain

@@ -14,6 +14,9 @@ dependencies {
     implementation(libs.jackson.databind)
     implementation(libs.jackson.kotlin)
     implementation(libs.pdfbox)
+    // TODO in libs
+    implementation("com.google.api-client:google-api-client:1.32.2")
+
 
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.assertj)

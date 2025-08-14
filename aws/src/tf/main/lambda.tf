@@ -16,6 +16,7 @@ resource "aws_lambda_function" "main" {
   environment {
     variables = {
       "FLIGHT_TABLE_NAME" = aws_dynamodb_table.main.name
+      "FLIGHT_GOOGLE_CLIENT_ID" = var.google-client-id
     }
   }
   depends_on = [
