@@ -69,15 +69,34 @@ class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> 
                 val loginRequest = objectMapper.readValue<GoogleLoginRequest>(input.body)
                 val googleLogin = googleService.googleLogin(loginRequest.bearer)
                 if(googleLogin == null) {
-                    return APIGatewayV2HTTPResponse(400, null, null, null, null, false)
+                    return resp400()
                 }
                 val userId = userRepository.getUserIdByGoogleId(googleLogin)
                 val sessionId = UUID.randomUUID().toString()
-                sessionRepository.upsertSession(sessionId, userId, Instant.now())
+                sessionRepository.upsertSession(sessionId, userId, googleLogin, Instant.now())
                 val respJson = objectMapper.writeValueAsString(LoginResponse(sessionId))
                 return APIGatewayV2HTTPResponse(200, null, null, null, respJson, false)
             }
-            // TODO verify user
+            "POST /users" -> {
+                val sessionId = getSessionId(input.headers["Authorization"])
+                if (sessionId == null) {
+                    return resp400()
+                }
+                val session = sessionRepository.getSession(sessionId, Instant.now())
+                if(session == null) {
+                    return resp400()
+                }
+                val userId = UUID.randomUUID().toString()
+                userRepository.createUser(userId, session.googleId)
+                APIGatewayV2HTTPResponse(
+                    200,
+                    mapOf("Content-Type" to "application/json"),
+                    null,
+                    null,
+                    objectMapper.writeValueAsString(CreateUserResponse(userId)),
+                    false
+                )
+            }
             "GET /users/{user-id}/stream" -> {
                 val start = input.queryStringParameters?.let{ it["start"]}?.toInt() ?: 0
                 val userId = input.pathParameters?.get("user-id")!!
@@ -92,7 +111,6 @@ class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> 
                     false
                 )
             }
-            // TODO verify user
             "POST /users/{user-id}/stream" -> {
                 val userId = input.pathParameters?.get("user-id")!!
                 verify(input.headers["Authorization"], userId)
@@ -101,7 +119,7 @@ class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> 
                 }
                 val readTree = objectMapper.readTree(input.body)
                 if(readTree !is ArrayNode) {
-                    return APIGatewayV2HTTPResponse(400, null, null, null, null, false)
+                    return resp400()
                 }
                 if(readTree.size() == 0) {
                     return APIGatewayV2HTTPResponse(200, null, null, null, null, false)
@@ -111,11 +129,11 @@ class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> 
                 readTree.asSequence().zip(generateSequence(expectedVersion, Int::inc))
                     .forEach { (node, exp) ->
                         if(node !is ObjectNode) {
-                            return APIGatewayV2HTTPResponse(400, null, null, null, null, false)
+                            return resp400()
                         }
                         val version = node.get("version")
                         if(version !is IntNode) {
-                            return APIGatewayV2HTTPResponse(400, null, null, null, null, false)
+                            return resp400()
                         }
                         val versionInt = version.intValue()
                         if(versionInt != exp) {
@@ -130,13 +148,22 @@ class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> 
         }
     }
 
+    private fun resp400(): APIGatewayV2HTTPResponse = APIGatewayV2HTTPResponse(400, null, null, null, null, false)
+
     private fun verify(authenticationHeader: String?, userId: String): Boolean {
-        if(authenticationHeader == null || !authenticationHeader.startsWith("Bearer ")) {
+        val sessionId = getSessionId(authenticationHeader)
+        if(sessionId == null) {
             return false
         }
-        val sessionId = authenticationHeader.removePrefix("Bearer ")
         val session = sessionRepository.getSession(sessionId, Instant.now())
 
         return session?.userId == userId
+    }
+
+    private fun getSessionId(authenticationHeader: String?): String? {
+        if(authenticationHeader == null || !authenticationHeader.startsWith("Bearer ")) {
+            return null
+        }
+        return authenticationHeader.removePrefix("Bearer ")
     }
 }

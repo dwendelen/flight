@@ -12,6 +12,10 @@ resource "aws_dynamodb_table" "main" {
     name = "sk"
     type = "S"
   }
+  ttl {
+    attribute_name = "ttl"
+    enabled = true
+  }
 
   tags = local.default-tags
 }

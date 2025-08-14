@@ -11,7 +11,7 @@ class SessionRepository(
     private val dynamoClient: DynamoDbClient,
     private val tableName: String,
 ) {
-    fun upsertSession(sessionId: String, userId: String?, now: Instant) {
+    fun upsertSession(sessionId: String, userId: String?, googleId: String?, now: Instant) {
         val ttl = now.plus(1, ChronoUnit.DAYS)
         val item = mutableMapOf<String, AttributeValue>(
             "pk" to AttributeValue.fromS("session-$sessionId"),
@@ -20,6 +20,9 @@ class SessionRepository(
         )
         if(userId != null) {
             item += "user-id" to AttributeValue.fromS(userId)
+        }
+        if(googleId != null) {
+            item += "google-id" to AttributeValue.fromS(googleId)
         }
         dynamoClient.putItem(PutItemRequest.builder()
             .tableName(tableName)
@@ -47,7 +50,8 @@ class SessionRepository(
                 null
             } else {
                 val userId = response.item()["user-id"]?.s()
-                Session(userId)
+                val googleId = response.item()["google-id"]?.s()!!
+                Session(userId, googleId)
             }
         } else {
             null

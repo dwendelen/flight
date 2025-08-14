@@ -7,3 +7,7 @@ data class GoogleLoginRequest(
 data class LoginResponse(
     val sessionId: String
 )
+
+data class CreateUserResponse(
+    val userId: String,
+)

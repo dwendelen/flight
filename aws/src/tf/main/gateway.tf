@@ -2,6 +2,8 @@ locals {
   routes = [
     { method = "POST", path = "/ping" },
     { method = "POST", path = "/pdf" },
+    { method = "POST", path = "/google-login" },
+    { method = "POST", path = "/users" },
     { method = "GET", path = "/users/{user-id}/stream" },
     { method = "POST", path = "/users/{user-id}/stream" },
   ]
