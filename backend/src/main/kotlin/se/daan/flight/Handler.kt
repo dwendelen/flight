@@ -10,23 +10,23 @@ import com.fasterxml.jackson.databind.node.IntNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import org.slf4j.LoggerFactory
 import se.daan.flight.google.GoogleService
 import se.daan.flight.pdf.api.Page
 import se.daan.flight.pdf.generate
 import se.daan.flight.session.SessionRepository
 import se.daan.flight.stream.StreamRepository
 import se.daan.flight.user.UserRepository
-import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue
-import software.amazon.awssdk.services.dynamodb.model.GetItemRequest
 import java.time.Instant
 import java.util.UUID
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
 class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
+    private val logger = LoggerFactory.getLogger(Handler::class.java)
+
     private val objectMapper: ObjectMapper
     private val streamRepository: StreamRepository
     private val userRepository: UserRepository
@@ -61,7 +61,7 @@ class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> 
 
                 val base64Body = Base64.encode(pdf)
                 val headers = mapOf(
-                    "Content-Type" to "application/pdf"
+                    "content-type" to "application/pdf"
                 )
                 APIGatewayV2HTTPResponse(200, headers, null, null, base64Body, true)
             }
@@ -74,23 +74,28 @@ class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> 
                 val userId = userRepository.getUserIdByGoogleId(googleLogin)
                 val sessionId = UUID.randomUUID().toString()
                 sessionRepository.upsertSession(sessionId, userId, googleLogin, Instant.now())
-                val respJson = objectMapper.writeValueAsString(LoginResponse(sessionId))
+                val respJson = objectMapper.writeValueAsString(LoginResponse(sessionId, userId))
                 return APIGatewayV2HTTPResponse(200, null, null, null, respJson, false)
             }
             "POST /users" -> {
-                val sessionId = getSessionId(input.headers["Authorization"])
+                logger.info("POST /users")
+                logger.info("input.headers[\"Authorization\"] " + input.headers["Authorization"])
+                logger.info("input.headers[\"authorization\"] " + input.headers["authorization"])
+                val sessionId = getSessionId(input.headers["authorization"])
                 if (sessionId == null) {
                     return resp400()
                 }
                 val session = sessionRepository.getSession(sessionId, Instant.now())
+                logger.info("Got session $session")
                 if(session == null) {
                     return resp400()
                 }
                 val userId = UUID.randomUUID().toString()
                 userRepository.createUser(userId, session.googleId)
+                sessionRepository.upsertSession(sessionId, userId, session.googleId, Instant.now())
                 APIGatewayV2HTTPResponse(
                     200,
-                    mapOf("Content-Type" to "application/json"),
+                    mapOf("content-type" to "application/json"),
                     null,
                     null,
                     objectMapper.writeValueAsString(CreateUserResponse(userId)),
@@ -100,13 +105,13 @@ class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> 
             "GET /users/{user-id}/stream" -> {
                 val start = input.queryStringParameters?.let{ it["start"]}?.toInt() ?: 0
                 val userId = input.pathParameters?.get("user-id")!!
-                if(!verify(input.headers["Authorization"], userId)) {
+                if(!verify(input.headers["authorization"], userId)) {
                     return resp400()
                 }
                 val stream = streamRepository.fetchAll(userId, start)
                 APIGatewayV2HTTPResponse(
                     200,
-                    mapOf("Content-Type" to "application/json"),
+                    mapOf("content-type" to "application/json"),
                     null,
                     null,
                     objectMapper.writeValueAsString(stream),
@@ -115,7 +120,7 @@ class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> 
             }
             "POST /users/{user-id}/stream" -> {
                 val userId = input.pathParameters?.get("user-id")!!
-                if(!verify(input.headers["Authorization"], userId)) {
+                if(!verify(input.headers["authorization"], userId)) {
                     return resp400()
                 }
                 if(input.isBase64Encoded) {
@@ -148,7 +153,11 @@ class Handler : RequestHandler<APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> 
                 streamRepository.save(userId, readTree)
                 APIGatewayV2HTTPResponse(200, null, null, null, null, false)
             }
-            else -> throw IllegalArgumentException()
+            else -> if(input.requestContext.http.method == "OPTIONS") {
+                return APIGatewayV2HTTPResponse(204, null, null, null, null, false)
+            } else {
+                throw IllegalArgumentException()
+            }
         }
     }
 

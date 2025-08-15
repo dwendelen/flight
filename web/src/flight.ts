@@ -1,10 +1,25 @@
 //tsc --target es2019 flight.ts
 
+interface Config {
+    baseUrl: string,
+    googleClientId: string
+}
+declare var config: Config
+
+declare interface CredentialResponse {
+    credential: string // JWT
+    select_by: any
+}
+declare var google: any
+
 function main() {
-    let localEngine = new IndexedDBEngine("test", () => {});
-    let local = new BufferingVersionStream(localEngine)
-    let entityRepo = new EntityRepo(local);
-    let application = new Application(entityRepo);
+
+    let entityRepoFactory = (userId: string) => {
+        let localEngine = new IndexedDBEngine("test", userId, () => {});
+        let local = new BufferingVersionStream(localEngine)
+        return new EntityRepo(local)
+    }
+    let application = new Application(config.googleClientId, entityRepoFactory);
 
     let body = document.getElementsByTagName("body").item(0);
 
@@ -15,16 +30,86 @@ function main() {
 
 class Application {
     page: Value<Component> = new Value(loading())
+    entityRepo: EntityRepo
+    sessionId: string | null = null
 
-    constructor(private entityRepo: EntityRepo) {
+    constructor(
+        private clientId: string,
+        private entityRepoFactory: (userId: string) => EntityRepo
+    ) {
 
     }
 
     init() {
+        google.accounts.id.initialize({
+            client_id: this.clientId,
+
+            callback: (cred: CredentialResponse) =>
+                this.onGoogleLogin(cred)
+        });
+        this.page.set(loginPage())
+    }
+
+    onGoogleLogin(cred: CredentialResponse) {
+        this.page.set(loading())
+        let googleLoginRequest: GoogleLoginRequest = {
+            bearer: cred.credential
+        }
+        window.fetch(config.baseUrl + "/google-login", {
+            method: "POST",
+            headers: {"content-type": "application/json"},
+            body: JSON.stringify(googleLoginRequest)
+        }).then( resp => {
+            if(!resp.ok) {
+                throw "Login failed"
+            }
+            return resp.json()
+        }).then(json => {
+            let loginResponse = json as LoginResponse;
+            this.sessionId = loginResponse.sessionId
+            if(loginResponse.userId == null) {
+                this.page.set(createAccountPage(this))
+            } else {
+                this.loggedIn(loginResponse.userId);
+            }
+        })
+    }
+
+    createAccount() {
+        window.fetch(config.baseUrl + "/users", {
+            method: "POST",
+            headers: {"authorization": "Bearer " + this.sessionId},
+        }).then(resp => {
+            if(!resp.ok) {
+                throw "Create account failed"
+            }
+            return resp.json()
+        }).then(json => {
+            let createUserResponse = json as CreateUserResponse;
+            this.loggedIn(createUserResponse.userId);
+        })
+        this.page.set(loading())
+    }
+
+    private loggedIn(userId: string) {
+        this.entityRepo = this.entityRepoFactory(userId)
         this.entityRepo.init(() => {
             this.page.set(mainPage(new MainPage(this.entityRepo)))
         })
     }
+}
+
+interface GoogleLoginRequest {
+    bearer: string
+}
+
+interface LoginResponse {
+    sessionId: string
+    userId: string | null
+}
+
+interface CreateUserResponse {
+    userId: string,
 }
 
 class EntityRepo {
@@ -96,6 +181,16 @@ function loading(): Component {
     return text("Loading ...")
 }
 
+function loginPage() {
+    return div(googleButton())
+}
+
+function createAccountPage(application: Application) {
+    return div(
+        text("No account detected."),
+        button(text("Create account"), onklick(() => application.createAccount()))
+    )
+}
 
 class MainPage {
     page: Value<Component> = new Value(home())
@@ -466,7 +561,7 @@ class TripPage {
         window.fetch("https://api.dev.flight.daan.se/pdf", {
             method: 'POST',
             headers: {
-                "Content-Type": "application/json"
+                "content-type": "application/json"
             },
             body: JSON.stringify(pages)
         }).then(resp => {
@@ -2498,6 +2593,15 @@ function onBlur(fn: () => void): Component {
     }
 }
 
+
+function googleButton(): Component {
+    return (elem: HTMLDivElement) => {
+        google.accounts.id.renderButton(elem, { theme: "outline", size: "large" })
+        return () => {}
+    }
+}
+
+
 // Core
 type Subscription = () => void
 type Listener<T> = (val: T) => void
@@ -2554,11 +2658,14 @@ interface VersionStreamEngine {
 
 class IndexedDBEngine implements VersionStreamEngine {
     private database: Promise<IDBDatabase>
+    private storeName: string
 
     constructor(
         private name: string,
+        streamId: string,
         private onError: (message: string) => void
     ) {
+        this.storeName = "stream-" + streamId
     }
 
     init() {
@@ -2569,7 +2676,7 @@ class IndexedDBEngine implements VersionStreamEngine {
             }
             openReq.onupgradeneeded = (ev) => {
                 let database = openReq.result
-                database.createObjectStore("stream", { keyPath: "version" })
+                database.createObjectStore(this.storeName, { keyPath: "version" })
             }
             openReq.onsuccess = (ev) => {
                 let database = openReq.result
@@ -2587,8 +2694,8 @@ class IndexedDBEngine implements VersionStreamEngine {
     load(first: number, onEntity: (entity: VersionedEntity) => void, onComplete: () => void) {
         this.database
             .then((db) => {
-                let trans = db.transaction("stream");
-                let cursorRequest = trans.objectStore("stream")
+                let trans = db.transaction(this.storeName);
+                let cursorRequest = trans.objectStore(this.storeName)
                     .openCursor(IDBKeyRange.lowerBound(first));
                 cursorRequest.onsuccess = () => {
                     let cursor = cursorRequest.result
@@ -2606,8 +2713,8 @@ class IndexedDBEngine implements VersionStreamEngine {
     save(entities: VersionedEntity[], onSaved: () => void) {
         this.database
             .then((db) => {
-                let trans = db.transaction("stream", "readwrite");
-                let obj = trans.objectStore("stream");
+                let trans = db.transaction(this.storeName, "readwrite");
+                let obj = trans.objectStore(this.storeName);
                 entities.forEach(entity => {
                     obj.add(entity)
                 })
@@ -2724,5 +2831,6 @@ class LocalRemoteVersionStream implements VersionStream {
     }
 }
 
-main()
-
+window.onload = () => {
+    main()
+}
