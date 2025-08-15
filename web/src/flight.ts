@@ -208,6 +208,10 @@ class MainPage {
     openManage() {
         this.page.set(manage(new ManagePage(this.entityRepo)))
     }
+
+    openLogbook() {
+        this.page.set(logbook(new LogbookPage(this.entityRepo)))
+    }
 }
 
 function mainPage(mainPage: MainPage): Component {
@@ -215,6 +219,7 @@ function mainPage(mainPage: MainPage): Component {
         div(
             clazz("navigation-bar"),
             div(text("Trips"), onklick(() => mainPage.openTrips())),
+            div(text("Logbook"), onklick(() => mainPage.openLogbook())),
             div(text("Manage"), onklick(() => mainPage.openManage()))
         ),
         div(
@@ -225,7 +230,6 @@ function mainPage(mainPage: MainPage): Component {
 
 function home(): Component {
     return arr([])
-    // return h1(text("Home"))
 }
 
 class TripsPage {
@@ -1970,6 +1974,123 @@ function aerodromeInput(
     })
 }
 
+class LogbookPage {
+    entries: Set<LogbookEntry>
+    page: Value<number>
+    editing: LogbookEntry | null
+
+    constructor(
+        private entityRepo: EntityRepo
+    ) {
+        let entries = this.entityRepo.getAllOfType<LogbookEntry>("logbook-entry")
+        this.entries = new Set(entries)
+        this.page = new Value(Math.max(1, ...entries.map(e => e.page)))
+    }
+
+    pageNumbers(): number[] {
+        let pageNumbers = new Set([...this.entries].map(e => e.page))
+        return [...pageNumbers]
+            .sort()
+    }
+
+    openPage(page: number) {
+        this.page.set(page)
+    }
+}
+
+function logbook(logbookPage: LogbookPage): Component {
+    return sub(map(logbookPage.page, currentPage => {
+        let pages = logbookPage.pageNumbers().map(p => {
+            return a(text(p.toString()), onklick(() => logbookPage.openPage(p)))
+        })
+        let lines = [...Array(15).keys()]
+            .map(l => l + 1)
+            .map(l => {
+                let entries = [...logbookPage.entries]
+                    .filter(e => e.page == currentPage && e.line === l)
+                if(entries.length == 0) {
+                    return {
+                        type: "logbook-entry",
+                        page: currentPage,
+                        line: l,
+                        date: null,
+                        from: null,
+                        to: null,
+                        departure: null,
+                        arrival: null,
+                        aircraft: null,
+                        landings: null,
+                        pic: null,
+                        dual: null,
+                        trip: null
+                    } as LogbookEntry
+                } else {
+                    return entries[0]
+                }
+            })
+            .flatMap(l => {
+                return [
+                    div(clazz("date"), text(""/*l.date*/)),
+                    div(clazz("dep-place"), text(""/*l.from*/)),
+                    div(clazz("dep-time"), text(formatTime(l.departure))),
+                    div(clazz("arr-place"), text(""/*l.to*/)),
+                    div(clazz("arr-time"), text(formatTime(l.arrival))),
+                    div(clazz("model"), text(""/*l.aircraft*/)),
+                    div(clazz("registration"), text(""/*l.aircraft*/)),
+                    div(clazz("total-time"), text(formatDuration(l.arrival - l.departure))),
+                    div(clazz("pic"), text("PIC")),
+                    div(clazz("landings"), text(""/*l.landings*/)),
+                    div(clazz("pic-time"), text(formatDuration(l.pic))),
+                    div(clazz("dual-time"), text(formatDuration(l.dual))),
+                ]
+            })
+        return arr([
+            div(...pages),
+            div(
+                clazz("logbook"),
+                div(clazz("date-header"), text("Date")),
+                div(clazz("departure-header"), text("Departure")),
+                div(clazz("arrival-header"), text("Arrival")),
+                div(clazz("aircraft-header"), text("Aircraft")),
+                div(clazz("total-time-header"), text("Total Time of Flight")),
+                div(clazz("pic-header"), text("Name(s) PIC")),
+                div(clazz("landings-header"), text("Landings")),
+                div(clazz("function-time-header"), text("Pilot Function Time")),
+                div(clazz("dep-place-header"), text("Place")),
+                div(clazz("dep-time-header"), text("Time")),
+                div(clazz("arr-place-header"), text("Place")),
+                div(clazz("arr-time-header"), text("Time")),
+                div(clazz("model-header"), text("Model")),
+                div(clazz("registration-header"), text("Registration")),
+                div(clazz("pic-time-header"), text("PIC")),
+                div(clazz("dual-time-header"), text("Dual")),
+                ...lines,
+                div(clazz("total-this-blank")),
+                div(clazz("total-this-header"), text("Total This Page")),
+                div(clazz("total-this-total-time")),
+                div(clazz("total-this-pic")),
+                div(clazz("total-this-landings")),
+                div(clazz("total-this-pic-time")),
+                div(clazz("total-this-dual-time")),
+                div(clazz("total-prev-blank")),
+                div(clazz("total-prev-header"), text("Total From Previous Page")),
+                div(clazz("total-prev-total-time")),
+                div(clazz("total-prev-pic")),
+                div(clazz("total-prev-landings")),
+                div(clazz("total-prev-pic-time")),
+                div(clazz("total-prev-dual-time")),
+                div(clazz("total-grand-blank")),
+                div(clazz("total-grand-header"), text("Total Time")),
+                div(clazz("total-grand-total-time")),
+                div(clazz("total-grand-pic")),
+                div(clazz("total-grand-landings")),
+                div(clazz("total-grand-pic-time")),
+                div(clazz("total-grand-dual-time")),
+            )
+        ])
+    }))
+}
+
 class ManagePage {
     page: Value<Component> = new Value(arr([]))
     descriptions = [
@@ -2297,9 +2418,9 @@ interface LogbookEntry extends VersionedEntity {
     arrival: Time | null
     aircraft: number | null
     landings: number | null
-    pic: Duration
-    dual: Duration
-    flight: number | null
+    pic: Duration | null
+    dual: Duration | null
+    trip: TripId | null
 }
 
 
@@ -2459,6 +2580,10 @@ function button(...mods: Component[]): Component {
 
 function h1(...mods: Component[]): Component {
     return tag("h1", ...mods)
+}
+
+function a(...mods: Component[]): Component {
+    return tag("a", ...mods)
 }
 
 function dropdown<T>(value: Value<T>, options: T[], toString: (option: T) => string): Component {
