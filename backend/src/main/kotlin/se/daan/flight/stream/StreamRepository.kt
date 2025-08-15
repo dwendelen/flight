@@ -23,17 +23,17 @@ class StreamRepository(
                         ":sk" to AttributeValue.fromS(sortableInt(start))
                     )
                 )
-                .scanIndexForward(false)
                 .limit(1)
                 // We want consistent because if events are coming in quickly, it must not fail
                 .consistentRead(true)
                 .build()
         ).items().map { item ->
-            val sk = item["sk"]!!
-            item.remove("pk")
-            item.remove("sk")
-            item["version"] = AttributeValue.fromN(sk.s().drop(1))
-            map(item)
+            val item2 = item.toMutableMap()
+            val sk = item2["sk"]!!
+            item2.remove("pk")
+            item2.remove("sk")
+            item2["version"] = AttributeValue.fromN(sk.s().drop(1))
+            map(item2)
         }
         val arrayNode = objectMapper.createArrayNode()
         arrayNode.addAll(items)

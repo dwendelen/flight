@@ -14,10 +14,13 @@ declare var google: any
 
 function main() {
 
-    let entityRepoFactory = (userId: string) => {
+    let entityRepoFactory = (userId: string, sessionId: string) => {
         let localEngine = new IndexedDBEngine(userId, () => {});
         let local = new BufferingVersionStream(localEngine)
-        return new EntityRepo(local)
+        let remoteEngine = new RemoteEngine(config.baseUrl, userId, sessionId)
+        let remote = new BufferingVersionStream(remoteEngine)
+        let stream = new LocalRemoteVersionStream(local, remote);
+        return new EntityRepo(stream)
     }
     let application = new Application(config.googleClientId, entityRepoFactory);
 
@@ -35,7 +38,7 @@ class Application {
 
     constructor(
         private clientId: string,
-        private entityRepoFactory: (userId: string) => EntityRepo
+        private entityRepoFactory: (userId: string, sessionId: string) => EntityRepo
     ) {
 
     }
@@ -92,7 +95,7 @@ class Application {
     }
 
     private loggedIn(userId: string) {
-        this.entityRepo = this.entityRepoFactory(userId)
+        this.entityRepo = this.entityRepoFactory(userId, this.sessionId)
         this.entityRepo.init(() => {
             this.page.set(mainPage(new MainPage(this.entityRepo)))
         })
@@ -2718,6 +2721,55 @@ class IndexedDBEngine implements VersionStreamEngine {
                 trans.oncomplete = onSaved
                 trans.commit()
             })
+    }
+}
+
+class RemoteEngine implements VersionStreamEngine {
+    constructor(
+        private baseUrl: string,
+        private userId: string,
+        private sessionId: string,
+    ) {
+    }
+    init(): void {
+    }
+
+    load(first: number, onEntity: (entity: VersionedEntity) => void, onComplete: () => void): void {
+        window.fetch(this.baseUrl + "/users/" + this.userId + "/stream?start=" + first, {
+            method: "GET",
+            headers: {
+                "authorization": "Bearer " + this.sessionId,
+            },
+        }).then( resp => {
+            if(!resp.ok) {
+                throw "Loading failed"
+            }
+            return resp.json()
+            // TODO error handling in all window.fetch places
+        }).then(json => {
+            let entities = json as VersionedEntity[]
+            entities.forEach(entity => {
+                onEntity(entity)
+            })
+            onComplete()
+        })
+    }
+
+    save(entities: VersionedEntity[], onSaved: () => void): void {
+        window.fetch(this.baseUrl + "/users/" + this.userId + "/stream", {
+            method: "POST",
+            headers: {
+                "content-type": "application/json",
+                "authorization": "Bearer " + this.sessionId,
+            },
+            body: JSON.stringify(entities)
+        }).then( resp => {
+            if(!resp.ok) {
+                throw "Saving failed"
+            }
+            onSaved()
+            // TODO error handling in all window.fetch places
+        })
     }
 }
 
