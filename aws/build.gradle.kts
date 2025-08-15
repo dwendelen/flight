@@ -23,8 +23,14 @@ fun registerTerraform(environment: String) {
         standardInput = System.`in`
         dependsOn(buildAwsZip, buildAwsLibZip, project(":web").tasks.named("assemble"))
     }
+    tasks.register("init-terraform-$environment", Exec::class) {
+        group = "init"
+        workingDir(projectDir.resolve("src/tf/$environment"))
+        commandLine("terraform", "init")
+        standardInput = System.`in`
+    }
 }
 
-registerTerraform("dev",)
+registerTerraform("dev")
 //registerTerraform("tst")
 registerTerraform("prd")
