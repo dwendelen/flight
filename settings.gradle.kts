@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 include(":web")
 include(":backend")
 include(":aws")
+include(":tools")
