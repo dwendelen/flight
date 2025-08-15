@@ -15,7 +15,7 @@ declare var google: any
 function main() {
 
     let entityRepoFactory = (userId: string) => {
-        let localEngine = new IndexedDBEngine("flight", userId, () => {});
+        let localEngine = new IndexedDBEngine(userId, () => {});
         let local = new BufferingVersionStream(localEngine)
         return new EntityRepo(local)
     }
@@ -2658,25 +2658,22 @@ interface VersionStreamEngine {
 
 class IndexedDBEngine implements VersionStreamEngine {
     private database: Promise<IDBDatabase>
-    private storeName: string
 
     constructor(
-        private name: string,
-        streamId: string,
+        private userId: string,
         private onError: (message: string) => void
     ) {
-        this.storeName = "stream-" + streamId
     }
 
     init() {
         this.database = new Promise<IDBDatabase>((resolve: (db: IDBDatabase) => void, reject: () => void) => {
-            let openReq = indexedDB.open(this.name, 1);
+            let openReq = indexedDB.open("user-" + this.userId, 1);
             openReq.onerror = (ev) => {
                 this.onError(openReq.error.message)
             }
             openReq.onupgradeneeded = (ev) => {
                 let database = openReq.result
-                database.createObjectStore(this.storeName, { keyPath: "version" })
+                database.createObjectStore("stream", { keyPath: "version" })
             }
             openReq.onsuccess = (ev) => {
                 let database = openReq.result
@@ -2694,8 +2691,8 @@ class IndexedDBEngine implements VersionStreamEngine {
     load(first: number, onEntity: (entity: VersionedEntity) => void, onComplete: () => void) {
         this.database
             .then((db) => {
-                let trans = db.transaction(this.storeName);
-                let cursorRequest = trans.objectStore(this.storeName)
+                let trans = db.transaction("stream");
+                let cursorRequest = trans.objectStore("stream")
                     .openCursor(IDBKeyRange.lowerBound(first));
                 cursorRequest.onsuccess = () => {
                     let cursor = cursorRequest.result
@@ -2713,8 +2710,8 @@ class IndexedDBEngine implements VersionStreamEngine {
     save(entities: VersionedEntity[], onSaved: () => void) {
         this.database
             .then((db) => {
-                let trans = db.transaction(this.storeName, "readwrite");
-                let obj = trans.objectStore(this.storeName);
+                let trans = db.transaction("stream", "readwrite");
+                let obj = trans.objectStore("stream");
                 entities.forEach(entity => {
                     obj.add(entity)
                 })
