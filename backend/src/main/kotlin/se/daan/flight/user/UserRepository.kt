@@ -14,7 +14,7 @@ class UserRepository(
             .tableName(tableName)
             .item(mapOf(
                 "pk" to AttributeValue.fromS("google-$googleId"),
-                "sk" to AttributeValue.fromS(""),
+                "sk" to AttributeValue.fromS(" "),
                 "user-id" to AttributeValue.fromS(userId)
             ))
             .conditionExpression("attribute_not_exists(pk)")
@@ -28,7 +28,7 @@ class UserRepository(
                 .key(
                     mapOf(
                         "pk" to AttributeValue.fromS("google-$googleId"),
-                        "sk" to AttributeValue.fromS(""),
+                        "sk" to AttributeValue.fromS(" "),
                     )
                 )
                 .build()

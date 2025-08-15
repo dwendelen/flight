@@ -15,7 +15,7 @@ class SessionRepository(
         val ttl = now.plus(1, ChronoUnit.DAYS)
         val item = mutableMapOf<String, AttributeValue>(
             "pk" to AttributeValue.fromS("session-$sessionId"),
-            "sk" to AttributeValue.fromS(""),
+            "sk" to AttributeValue.fromS(" "),
             "ttl" to AttributeValue.fromN((ttl.toEpochMilli() / 1000L).toString())
         )
         if(userId != null) {
@@ -38,7 +38,7 @@ class SessionRepository(
                 .key(
                     mapOf(
                         "pk" to AttributeValue.fromS("session-$sessionId"),
-                        "sk" to AttributeValue.fromS(""),
+                        "sk" to AttributeValue.fromS(" "),
                     )
                 )
                 .build()
