@@ -27,7 +27,6 @@ class SessionRepository(
         dynamoClient.putItem(PutItemRequest.builder()
             .tableName(tableName)
             .item(item)
-            .conditionExpression("attribute_not_exists(pk)")
             .build())
     }
 

@@ -15,7 +15,7 @@ declare var google: any
 function main() {
 
     let entityRepoFactory = (userId: string) => {
-        let localEngine = new IndexedDBEngine("test", userId, () => {});
+        let localEngine = new IndexedDBEngine("flight", userId, () => {});
         let local = new BufferingVersionStream(localEngine)
         return new EntityRepo(local)
     }
