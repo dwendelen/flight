@@ -27,4 +27,4 @@ fun registerTerraform(environment: String) {
 
 registerTerraform("dev",)
 //registerTerraform("tst")
-//registerTerraform("prd")
+registerTerraform("prd")
