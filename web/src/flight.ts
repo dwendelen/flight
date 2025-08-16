@@ -498,11 +498,12 @@ class TripPage {
             fuelFlow: this.fuelFlow.get(),
             fuelContingency: 0.05, // TODO
             finalReserve: 1800, // TODO
-            preTakeoffFuel: 2, // TODO
-            postLandingFuel: 1, // TODO
             preTakeoffTime: 720, // TODO
-            circuitTime: 240, // TODO
+            preTakeoffFuel: 2, // TODO
+            postTakeoffTime: 60, // TODO
+            preLandingTime: 240, // TODO
             postLandingTime: 360, // TODO
+            postLandingFuel: 1, // TODO
         };
     }
 
@@ -1385,11 +1386,12 @@ function trip(tripPage: TripPage) {
             clazz("parameters"),
             div(text("Contingency Fuel")), div(text("5%")),
             div(text("Final Reserve")), div(text("30:00")),
-            div(text("Pre-Take-off Fuel")), div(text("2")),
-            div(text("Post-Landing Fuel")), div(text("1")),
             div(text("Pre-Take-off Time")), div(text("12:00")),
-            div(text("Circuit Time")), div(text("04:00")),
+            div(text("Pre-Take-off Fuel")), div(text("2L")),
+            div(text("Post-Take-off Time")), div(text("01:00")),
+            div(text("Pre-Landing Time")), div(text("04:00")),
             div(text("Post-Landing Time")), div(text("06:00")),
+            div(text("Post-Landing Fuel")), div(text("1L")),
         ),
         div(
             clazz("perfo"),
@@ -1701,11 +1703,11 @@ function calculate(tripPlan: TripPlan): CalculatedTrip {
                 let extra = 0
                 if(waypoints[i - 1].type === "take-off") {
                     // TODO if null
-                    extra += tripPlan.circuitTime + tripPlan.preTakeoffTime
+                    extra += tripPlan.postTakeoffTime + tripPlan.preTakeoffTime
                 }
                 if(waypoints[i].type === "landing") {
                     // TODO if null
-                    extra += tripPlan.circuitTime + tripPlan.postLandingTime
+                    extra += tripPlan.preLandingTime + tripPlan.postLandingTime
                 }
                 if(legs[i - 1].ete != null) {
                     waypoints[i].eta = waypoints[i - 1].eta + legs[i - 1].ete + extra
@@ -1715,11 +1717,11 @@ function calculate(tripPlan: TripPlan): CalculatedTrip {
                 let extra = 0
                 if(waypoints[i].type === "take-off") {
                     // TODO if null
-                    extra += tripPlan.circuitTime + tripPlan.preTakeoffTime
+                    extra += tripPlan.postTakeoffTime + tripPlan.preTakeoffTime
                 }
                 if(waypoints[i + 1].type === "landing") {
                     // TODO if null
-                    extra += tripPlan.circuitTime + tripPlan.postLandingTime
+                    extra += tripPlan.preLandingTime + tripPlan.postLandingTime
                 }
                 if(legs[i].ete != null) {
                     waypoints[i].eta = waypoints[i + 1].eta - legs[i].ete - extra
@@ -1744,11 +1746,11 @@ function calculate(tripPlan: TripPlan): CalculatedTrip {
             let extra = 0
             if(waypoints[j].type === "take-off") {
                 // TODO if null
-                extra += fuelFlow * tripPlan.circuitTime / 3600 + tripPlan.preTakeoffFuel
+                extra += fuelFlow * tripPlan.postTakeoffTime / 3600 + tripPlan.preTakeoffFuel
             }
             if(waypoints[j + 1].type === "landing") {
                 // TODO if null
-                extra += fuelFlow * tripPlan.circuitTime / 3600 + tripPlan.postLandingFuel
+                extra += fuelFlow * tripPlan.preLandingTime / 3600 + tripPlan.postLandingFuel
             }
             fuel = fuel + plan.legs[j].fuel + extra
             waypoints[j].fuel = fuel
@@ -2569,11 +2571,12 @@ interface TripPlan extends VersionedEntity {
     variation: number | null // TODO input
     fuelContingency: number | null // TODO input
     finalReserve: Duration | null // TODO input // TODO to seconds
-    preTakeoffFuel: number | null // TODO input
-    postLandingFuel: number | null // TODO input
     preTakeoffTime: Duration | null // TODO input // TODO to seconds
-    circuitTime:  Duration | null // TODO input // TODO to seconds
+    preTakeoffFuel: number | null // TODO input
+    postTakeoffTime: Duration | null // TODO input // TODO to seconds
+    preLandingTime:  Duration | null // TODO input // TODO to seconds
     postLandingTime:  Duration | null // TODO input // TODO to seconds
+    postLandingFuel: number | null // TODO input
     stops: Stop[]
     flightPlans: FlightPlan[]
 }
