@@ -2105,6 +2105,94 @@ class LogbookPage {
             return this.entityRepo.getByVersion<Aircraft>(ver).model
         }
     }
+
+    totalTimeOf(entry: LogbookEntry | null): number | null {
+        if(entry == null || entry.departure == null || entry.arrival == null) {
+            return null
+        } else {
+            return entry.arrival - entry.departure
+        }
+    }
+
+    totalTimeThisPage(currentPage: number): Duration {
+        return this.pages[currentPage]
+            .map(e => this.totalTimeOf(e))
+            .map(t => t === null? 0: t)
+            .reduce((a, b) => a + b)
+    }
+
+    landingsThisPage(currentPage: number): Duration {
+        return this.pages[currentPage]
+            .map(e => e == null? null: e.landings)
+            .map(l => l === null? 0: l)
+            .reduce((a, b) => a + b)
+    }
+
+    picTimeThisPage(currentPage: number): Duration {
+        return this.pages[currentPage]
+            .map(e => e == null? null: e.pic)
+            .map(t => t === null? 0: t)
+            .reduce((a, b) => a + b)
+    }
+
+    dualTimeThisPage(currentPage: number): Duration {
+        return this.pages[currentPage]
+            .map(e => e == null? null: e.dual)
+            .map(t => t === null? 0: t)
+            .reduce((a, b) => a + b)
+    }
+
+    totalTimePreviousPage(currentPage: number): Duration {
+        if(currentPage == 0) {
+            return 0
+        } else {
+            return this.totalTimeGrandTotal(currentPage - 1)
+        }
+    }
+
+    landingsPreviousPage(currentPage: number): Duration {
+        if(currentPage == 0) {
+            return 0
+        } else {
+            return this.landingsGrandTotal(currentPage - 1)
+        }
+    }
+
+    picTimePreviousPage(currentPage: number): Duration {
+        if(currentPage == 0) {
+            return 0
+        } else {
+            return this.picTimeGrandTotal(currentPage - 1)
+        }
+    }
+
+    dualTimePreviousPage(currentPage: number): Duration {
+        if(currentPage == 0) {
+            return 0
+        } else {
+            return this.dualTimeGrandTotal(currentPage - 1)
+        }
+    }
+
+    totalTimeGrandTotal(currentPage: number): Duration {
+        return this.totalTimeThisPage(currentPage)
+            + this.totalTimePreviousPage(currentPage)
+    }
+
+    landingsGrandTotal(currentPage: number): Duration {
+        return this.landingsThisPage(currentPage)
+            + this.landingsPreviousPage(currentPage)
+    }
+
+    picTimeGrandTotal(currentPage: number): Duration {
+        return this.picTimeThisPage(currentPage)
+            + this.picTimePreviousPage(currentPage)
+    }
+
+    dualTimeGrandTotal(currentPage: number): Duration {
+        return this.dualTimeThisPage(currentPage)
+            + this.dualTimePreviousPage(currentPage)
+    }
 }
 
 function logbook(logbookPage: LogbookPage): Component {
@@ -2135,7 +2223,7 @@ function logbook(logbookPage: LogbookPage): Component {
                         )
                     ]
                 } else {
-                    let editDiv
+                    let editDiv: Component
                     if(logbookPage.editing == null) {
                         editDiv = div(clazz("action"), button(text("Edit"), onklick(() => { logbookPage.edit(idx) })))
                     } else {
@@ -2200,24 +2288,24 @@ function logbook(logbookPage: LogbookPage): Component {
                 ...lines,
                 div(clazz("total-this-blank")),
                 div(clazz("total-this-header"), text("Total This Page")),
-                div(clazz("total-this-total-time")),
-                div(clazz("total-this-landings")),
-                div(clazz("total-this-pic-time")),
-                div(clazz("total-this-dual-time")),
+                div(clazz("total-this-total-time"), text(formatHHMM(logbookPage.totalTimeThisPage(currentPage)))),
+                div(clazz("total-this-landings"), text(logbookPage.landingsThisPage(currentPage).toString())),
+                div(clazz("total-this-pic-time"), text(formatHHMM(logbookPage.picTimeThisPage(currentPage)))),
+                div(clazz("total-this-dual-time"), text(formatHHMM(logbookPage.dualTimeThisPage(currentPage)))),
                 div(clazz("action")),
                 div(clazz("total-prev-blank")),
-                div(clazz("total-prev-header"), text("Total From Previous Page")),
-                div(clazz("total-prev-total-time")),
-                div(clazz("total-prev-landings")),
-                div(clazz("total-prev-pic-time")),
-                div(clazz("total-prev-dual-time")),
+                div(clazz("total-prev-header"), text("Total From Previous Pages")),
+                div(clazz("total-prev-total-time"), text(formatHHMM(logbookPage.totalTimePreviousPage(currentPage)))),
+                div(clazz("total-prev-landings"), text(logbookPage.landingsPreviousPage(currentPage).toString())),
+                div(clazz("total-prev-pic-time"), text(formatHHMM(logbookPage.picTimePreviousPage(currentPage)))),
+                div(clazz("total-prev-dual-time"), text(formatHHMM(logbookPage.dualTimePreviousPage(currentPage)))),
                 div(clazz("action")),
                 div(clazz("total-grand-blank")),
                 div(clazz("total-grand-header"), text("Total Time")),
-                div(clazz("total-grand-total-time")),
-                div(clazz("total-grand-landings")),
-                div(clazz("total-grand-pic-time")),
-                div(clazz("total-grand-dual-time")),
+                div(clazz("total-grand-total-time"), text(formatHHMM(logbookPage.totalTimeGrandTotal(currentPage)))),
+                div(clazz("total-grand-landings"), text(logbookPage.landingsGrandTotal(currentPage).toString())),
+                div(clazz("total-grand-pic-time"), text(formatHHMM(logbookPage.picTimeGrandTotal(currentPage)))),
+                div(clazz("total-grand-dual-time"), text(formatHHMM(logbookPage.dualTimeGrandTotal(currentPage)))),
                 div(clazz("action")),
             ),
             div(clazz("pages"), ...pages),

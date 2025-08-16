@@ -393,84 +393,102 @@ div.logbook > div.total-this-blank {
     grid-column-start: 1;
     grid-column-end: 6;
     border-width: 0 2px 0 2px;
+    height: 38px;
 }
 
 div.logbook > div.total-this-header {
     grid-column-start: 6;
     grid-column-end: 8;
     border-width: 1px 1px 1px 0;
+    height: 36px;
 }
 
 div.logbook > div.total-this-total-time {
     border-width: 1px 1px 1px 0;
+    height: 36px;
 }
 
 div.logbook > div.total-this-landings {
     border-width: 1px 1px 1px 0;
+    height: 36px;
 }
 
 div.logbook > div.total-this-pic-time {
     border-width: 1px 1px 1px 0;
+    height: 36px;
 }
 
 div.logbook > div.total-this-dual-time {
     border-width: 1px 2px 1px 0;
+    height: 36px;
 }
 
 div.logbook > div.total-prev-blank {
     grid-column-start: 1;
     grid-column-end: 6;
     border-width: 0 2px 0 2px;
+    height: 37px;
 }
 
 div.logbook > div.total-prev-header {
     grid-column-start: 6;
     grid-column-end: 8;
     border-width: 0 1px 1px 0;
+    height: 36px;
 }
 
 div.logbook > div.total-prev-total-time {
     border-width: 0 1px 1px 0;
+    height: 36px;
 }
 
 div.logbook > div.total-prev-landings {
     border-width: 0 1px 1px 0;
+    height: 36px;
 }
 
 div.logbook > div.total-prev-pic-time {
     border-width: 0 1px 1px 0;
+    height: 36px;
 }
 
 div.logbook > div.total-prev-dual-time {
     border-width: 0 2px 1px 0;
+    height: 36px;
 }
 
 div.logbook > div.total-grand-blank {
     grid-column-start: 1;
     grid-column-end: 6;
     border-width: 0 2px 2px 2px;
+    height: 36px;
 }
 
 div.logbook > div.total-grand-header {
     grid-column-start: 6;
     grid-column-end: 8;
     border-width: 0 1px 2px 0;
+    height: 36px;
 }
 
 div.logbook > div.total-grand-total-time {
     border-width: 0 1px 2px 0;
+    height: 36px;
 }
 
 div.logbook > div.total-grand-landings {
     border-width: 0 1px 2px 0;
+    height: 36px;
 }
 
 div.logbook > div.total-grand-pic-time {
     border-width: 0 1px 2px 0;
+    height: 36px;
 }
 
 div.logbook > div.total-grand-dual-time {
     border-width: 0 2px 2px 0;
+    height: 36px;
 }
 
 div.pages {
