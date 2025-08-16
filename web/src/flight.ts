@@ -161,7 +161,7 @@ class EntityRepo {
     }
 
     nextEntity() {
-        return Math.max(-1, ...this.entities
+        return Math.max(-1, ...this.versions
             .map(e => e.entity)) + 1
     }
 
@@ -810,7 +810,7 @@ function printTrip(trip: CalculatedTrip): Page[] {
                 ltext(y, 0, waypoint.name),
                 rtext(y, 4, formatInt(waypoint.alt)),
                 rtext(y, 6, formatFuel(waypoint.fuel)),
-                ltext(y, 6, formatTime(waypoint.eta)),
+                ltext(y, 6, formatHHMM(waypoint.eta)),
 
                 rtext(y + 1, 1, formatInt(leg.mh)),
                 rtext(y + 1, 2, formatInt(leg.mt)),
@@ -818,7 +818,7 @@ function printTrip(trip: CalculatedTrip): Page[] {
                 rtext(y + 1, 4, formatInt(leg.alt)),
                 rtext(y + 1, 5, formatInt(leg.msa)),
                 rtext(y + 1, 6, formatFuel(leg.fuel)),
-                rtext(y + 1, 7.5, formatDuration(leg.ete))
+                rtext(y + 1, 7.5, formatMMSS(leg.ete))
             ])
             y += 2
             for (let n = 0; n < leg.notes.length; n++) {
@@ -827,7 +827,7 @@ function printTrip(trip: CalculatedTrip): Page[] {
                     ver(y, 0, 2, 2, 0, 0),
                     ver(y, 8.5, 2, 2, 0, 0),
 
-                    rtext(y, 2, formatDuration(note.time)),
+                    rtext(y, 2, formatMMSS(note.time)),
                     ltext(y, 2, note.note),
                     ltext(y, 6, note.number),
                 )
@@ -856,7 +856,7 @@ function printTrip(trip: CalculatedTrip): Page[] {
             ltext(y, 0, lastWaypoint.name),
             rtext(y, 4, formatInt(lastWaypoint.alt)),
             rtext(y, 6, formatFuel(lastWaypoint.fuel)),
-            ltext(y, 6, formatTime(lastWaypoint.eta)),
+            ltext(y, 6, formatHHMM(lastWaypoint.eta)),
         ])
         y+= 2
 
@@ -1518,7 +1518,7 @@ function renderWaypointElement(
         div(clazz("wp-name"), textInput(value(waypointElement.name))),
         div(clazz("wp-alt"), numberInput(waypointElement.altitude)),
         div(clazz("wp-msa")),
-        div(clazz("wp-et"), timeInput(waypointElement.eta)),
+        div(clazz("wp-et"), timeInputHHMM(waypointElement.eta)),
         div(clazz("wp-action"), button(text("Delete"), onklick(() => tripPage.deleteWaypoint(flightElement, waypointElement)))),
         ...renderPostWaypointElement(tripPage, flightElement, waypointElement)
     ]
@@ -1544,7 +1544,7 @@ function renderPostWaypointElement(
             div(clazz("leg-wind-vel"), numberInput(legElement.windVelocity, 0)),
             div(clazz("leg-alt"), numberInput(legElement.altitude)),
             div(clazz("leg-msa"), numberInput(legElement.msa)),
-            div(clazz("leg-et"), durationInput(legElement.ete)),
+            div(clazz("leg-et"), timeInputMMSS(legElement.ete)),
             div(clazz("leg-action"), button(text("Insert Waypoint"), onklick(() => { tripPage.insertWaypointAfter(flightElement, waypointElement) }))),
             div(clazz("note-pre")),
             div(clazz("note-insert"), button(text("Insert Note"), onklick(() => { tripPage.insertNoteAfter(flightElement, legElement, null) }))),
@@ -1566,7 +1566,7 @@ function renderLegNotes(
     } else {
         return [
             div(clazz("note-pre")),
-            div(clazz("note-time"), durationInput(noteElement.time)),
+            div(clazz("note-time"), timeInputMMSS(noteElement.time)),
             div(clazz("note-note"), textInput(value(noteElement.note))),
             div(clazz("note-number"), textInput(value(noteElement.number))),
             div(clazz("note-post")),
@@ -1946,116 +1946,249 @@ function componentToString(comp: number) {
     return str
 }
 
-function aerodromeInput(
-    aerodromes: Aerodrome[],
-    aerodrome: Value<Aerodrome | null>
-): Component {
-    return factory(() => {
-        let val = aerodrome.get()
-        let text = new Value(val === null? "" : val.code)
-
-        let doOnBlur = () => {
-            let txt = text.get();
-            if(txt === "") {
-                aerodrome.set(null)
-            } else {
-                let maybeAerodrome = aerodromes
-                    .filter(a => a.code.toLowerCase() === txt.toLowerCase())
-                if (maybeAerodrome.length > 0) {
-                    let newAero = maybeAerodrome[0];
-                    aerodrome.set(newAero)
-                }
-            }
-            let val = aerodrome.get();
-            text.set(val === null? "" : val.code)
-        }
-
-        return textInput(value(text), onBlur(doOnBlur))
-    })
-}
-
 class LogbookPage {
-    entries: Set<LogbookEntry>
+    aerodromes: Aerodrome[]
+    aircrafts: Aircraft[]
+
+    pages: (LogbookEntry | null)[][] = []
     page: Value<number>
-    editing: LogbookEntry | null
+    editing: number | null
+
+    // Edit fields
+    date: Value<Date | null>
+    from: Value<Aerodrome | null>
+    to: Value<Aerodrome | null>
+    departure: Value<Time | null>
+    arrival: Value<Time | null>
+    aircraft: Value<Aircraft | null>
+    landings: Value<number | null>
+    pic: Value<Duration | null>
+    dual: Value<Duration | null>
+
+    totalTime: Value<number | null>
 
     constructor(
         private entityRepo: EntityRepo
     ) {
-        let entries = this.entityRepo.getAllOfType<LogbookEntry>("logbook-entry")
-        this.entries = new Set(entries)
-        this.page = new Value(Math.max(1, ...entries.map(e => e.page)))
-    }
+        this.aerodromes = this.entityRepo.getAllOfType<Aerodrome>("aerodrome")
+        this.aircrafts = this.entityRepo.getAllOfType<Aircraft>("aircraft")
 
-    pageNumbers(): number[] {
-        let pageNumbers = new Set([...this.entries].map(e => e.page))
-        return [...pageNumbers]
-            .sort()
+        let entries = this.entityRepo.getAllOfType<LogbookEntry>("logbook-entry")
+        for (let entry of entries) {
+            for(let i = this.pages.length; i <= entry.page; i++) {
+                this.pages.push([...Array(15).keys()].map(() => null))
+            }
+            this.pages[entry.page][entry.line] = entry
+        }
+        this.pages.push([...Array(15).keys()].map(() => null))
+
+        this.page = new Value(this.pages.length == 1? 0: this.pages.length - 2)
     }
 
     openPage(page: number) {
         this.page.set(page)
     }
+
+    edit(line: number) {
+        let entry = this.pages[this.page.get()][line]
+        if(entry === null) {
+            this.date = new Value(null)
+            this.from = new Value(null)
+            this.to = new Value(null)
+            this.departure = new Value(null)
+            this.arrival = new Value(null)
+            this.aircraft = new Value(null)
+            this.landings = new Value(null)
+            this.pic = new Value(null)
+            this.dual = new Value(null)
+        } else {
+            this.date = new Value(entry.date)
+            this.from = new Value(entry.from === null? null: this.entityRepo.getByVersion<Aerodrome>(entry.from))
+            this.to = new Value(entry.to === null? null: this.entityRepo.getByVersion<Aerodrome>(entry.to))
+            this.departure = new Value(entry.departure)
+            this.arrival = new Value(entry.arrival)
+            this.aircraft = new Value(entry.aircraft === null? null: this.entityRepo.getByVersion<Aircraft>(entry.aircraft))
+            this.landings = new Value(entry.landings)
+            this.pic = new Value(entry.pic)
+            this.dual = new Value(entry.dual)
+        }
+
+        this.totalTime = new Value(null)
+        let updateTotalTime = () => {
+            let dep = this.departure.get();
+            let arr = this.arrival.get();
+            if(dep == null || arr == null) {
+                this.totalTime.set(null)
+            } else {
+                this.totalTime.set(arr - dep)
+            }
+        }
+        this.arrival.subscribe(updateTotalTime)
+        this.departure.subscribe(updateTotalTime)
+        updateTotalTime()
+
+        this.editing = line
+        this.page.set(this.page.get())
+    }
+
+    save() {
+        let original = this.pages[this.page.get()][this.editing]
+        let newEntry: LogbookEntry = {
+            type: "logbook-entry",
+            version: this.entityRepo.nextVersion(),
+            entity: original === null? this.entityRepo.nextEntity(): original.entity,
+            page: this.page.get(),
+            line: this.editing,
+            date: this.date.get(),
+            from: this.from.get() == null? null: this.from.get().version,
+            to: this.to.get() == null? null: this.to.get().version,
+            departure: this.departure.get(),
+            arrival: this.arrival.get(),
+            aircraft: this.aircraft.get() == null? null: this.aircraft.get().version,
+            landings: this.landings.get(),
+            pic: this.pic.get(),
+            dual: this.dual.get(),
+            trip: null
+        }
+        this.entityRepo.save([newEntry])
+        this.pages[this.page.get()][this.editing] = newEntry
+
+        if(this.page.get() == this.pages.length - 1) {
+            this.pages.push([...Array(15).keys()].map(() => null))
+        }
+
+        this.editing = null
+        this.page.set(this.page.get())
+    }
+
+    delete() {
+        let original = this.pages[this.page.get()][this.editing]
+
+        if(original != null) {
+            this.entityRepo.save([{
+                type: "tombstone",
+                entity: original.entity,
+                version: this.entityRepo.nextVersion()
+            }])
+        }
+        this.pages[this.page.get()][this.editing] = null
+
+        this.editing = null
+        this.page.set(this.page.get())
+    }
+
+    cancel() {
+        this.editing = null
+        this.page.set(this.page.get())
+    }
+
+    aerodromeCode(ver: AerodromeVersion): string {
+        if(ver == null) {
+            return ""
+        } else {
+            return this.entityRepo.getByVersion<Aerodrome>(ver).code
+        }
+    }
+
+    aircraftRegistration(ver: AircraftVersion): string {
+        if(ver == null) {
+            return ""
+        } else {
+            return this.entityRepo.getByVersion<Aircraft>(ver).registration
+        }
+    }
+
+    aircraftModel(ver: AircraftVersion): string {
+        if(ver == null) {
+            return ""
+        } else {
+            return this.entityRepo.getByVersion<Aircraft>(ver).model
+        }
+    }
 }
 
 function logbook(logbookPage: LogbookPage): Component {
     return sub(map(logbookPage.page, currentPage => {
-        let pages = logbookPage.pageNumbers().map(p => {
-            return a(text(p.toString()), onklick(() => logbookPage.openPage(p)))
-        })
+        let pages = [text("Page:"), ...[...logbookPage.pages.keys()].map(p => {
+            let extraClazz = p == currentPage? [clazz("selected")]: []
+            return span(clazz("page"), ...extraClazz, text((p + 1).toString()), onklick(() => logbookPage.openPage(p)))
+        })]
         let lines = [...Array(15).keys()]
-            .map(l => l + 1)
-            .map(l => {
-                let entries = [...logbookPage.entries]
-                    .filter(e => e.page == currentPage && e.line === l)
-                if(entries.length == 0) {
-                    return {
-                        type: "logbook-entry",
-                        page: currentPage,
-                        line: l,
-                        date: null,
-                        from: null,
-                        to: null,
-                        departure: null,
-                        arrival: null,
-                        aircraft: null,
-                        landings: null,
-                        pic: null,
-                        dual: null,
-                        trip: null
-                    } as LogbookEntry
+            .flatMap(idx => {
+                if(idx === logbookPage.editing) {
+                    return [
+                        div(clazz("date"), dateInput(logbookPage.date)),
+                        div(clazz("dep-place"), aerodromeInput(logbookPage.aerodromes, logbookPage.from)),
+                        div(clazz("dep-time"), timeInputHHMM(logbookPage.departure)),
+                        div(clazz("arr-place"), aerodromeInput(logbookPage.aerodromes, logbookPage.to)),
+                        div(clazz("arr-time"), timeInputHHMM(logbookPage.arrival)),
+                        div(clazz("model"), sub(map(logbookPage.aircraft, (a) => text(a === null? "": a.model)))),
+                        div(clazz("registration"), aircraftInput(logbookPage.aircrafts, logbookPage.aircraft)),
+                        div(clazz("total-time"), sub(map(logbookPage.totalTime, t => text(formatHHMM(t))))),
+                        div(clazz("landings"), numberInput(logbookPage.landings)),
+                        div(clazz("pic-time"), timeInputHHMM(logbookPage.pic)),
+                        div(clazz("dual-time"), timeInputHHMM(logbookPage.dual)),
+                        div(clazz("action"),
+                            button(text("Save"), onklick(() => { logbookPage.save() })),
+                            button(text("Cancel"), onklick(() => { logbookPage.cancel() })),
+                            button(text("Delete"), onklick(() => { logbookPage.delete() }))
+                        )
+                    ]
                 } else {
-                    return entries[0]
+                    let editDiv
+                    if(logbookPage.editing == null) {
+                        editDiv = div(clazz("action"), button(text("Edit"), onklick(() => { logbookPage.edit(idx) })))
+                    } else {
+                        editDiv = div(clazz("action"), text("\xa0"))
+                    }
+
+                    let entry = logbookPage.pages[currentPage][idx]
+
+                    if (entry === null) {
+                        return [
+                            div(clazz("date")),
+                            div(clazz("dep-place")),
+                            div(clazz("dep-time")),
+                            div(clazz("arr-place")),
+                            div(clazz("arr-time")),
+                            div(clazz("model")),
+                            div(clazz("registration")),
+                            div(clazz("total-time")),
+                            div(clazz("landings")),
+                            div(clazz("pic-time")),
+                            div(clazz("dual-time")),
+                            editDiv
+                        ]
+                    } else {
+                        return [
+                            div(clazz("date"), text(formatDate(entry.date))),
+                            div(clazz("dep-place"), text(logbookPage.aerodromeCode(entry.from))),
+                            div(clazz("dep-time"), text(formatHHMM(entry.departure))),
+                            div(clazz("arr-place"), text(logbookPage.aerodromeCode(entry.to))),
+                            div(clazz("arr-time"), text(formatHHMM(entry.arrival))),
+                            div(clazz("model"), text(logbookPage.aircraftModel(entry.aircraft))),
+                            div(clazz("registration"), text(logbookPage.aircraftRegistration(entry.aircraft))),
+                            div(clazz("total-time"), text((entry.arrival == null || entry.departure == null)? "": formatHHMM(entry.arrival - entry.departure))),
+                            div(clazz("landings"), text(entry.landings == null? "": entry.landings.toString())),
+                            div(clazz("pic-time"), text(formatHHMM(entry.pic))),
+                            div(clazz("dual-time"), text(formatHHMM(entry.dual))),
+                            editDiv
+                        ]
+                    }
                 }
             })
-            .flatMap(l => {
-                return [
-                    div(clazz("date"), text(""/*l.date*/)),
-                    div(clazz("dep-place"), text(""/*l.from*/)),
-                    div(clazz("dep-time"), text(formatTime(l.departure))),
-                    div(clazz("arr-place"), text(""/*l.to*/)),
-                    div(clazz("arr-time"), text(formatTime(l.arrival))),
-                    div(clazz("model"), text(""/*l.aircraft*/)),
-                    div(clazz("registration"), text(""/*l.aircraft*/)),
-                    div(clazz("total-time"), text(formatDuration(l.arrival - l.departure))),
-                    div(clazz("pic"), text("PIC")),
-                    div(clazz("landings"), text(""/*l.landings*/)),
-                    div(clazz("pic-time"), text(formatDuration(l.pic))),
-                    div(clazz("dual-time"), text(formatDuration(l.dual))),
-                ]
-            })
         return arr([
-            div(...pages),
+            div(clazz("pages"), ...pages),
             div(
                 clazz("logbook"),
-                div(clazz("date-header"), text("Date")),
+                div(clazz("date-header"), text("Date (dd/mm/yy)")),
                 div(clazz("departure-header"), text("Departure")),
                 div(clazz("arrival-header"), text("Arrival")),
                 div(clazz("aircraft-header"), text("Aircraft")),
                 div(clazz("total-time-header"), text("Total Time of Flight")),
-                div(clazz("pic-header"), text("Name(s) PIC")),
                 div(clazz("landings-header"), text("Landings")),
                 div(clazz("function-time-header"), text("Pilot Function Time")),
+                div(clazz("action-header")),
                 div(clazz("dep-place-header"), text("Place")),
                 div(clazz("dep-time-header"), text("Time")),
                 div(clazz("arr-place-header"), text("Place")),
@@ -2068,25 +2201,26 @@ function logbook(logbookPage: LogbookPage): Component {
                 div(clazz("total-this-blank")),
                 div(clazz("total-this-header"), text("Total This Page")),
                 div(clazz("total-this-total-time")),
-                div(clazz("total-this-pic")),
                 div(clazz("total-this-landings")),
                 div(clazz("total-this-pic-time")),
                 div(clazz("total-this-dual-time")),
+                div(clazz("action")),
                 div(clazz("total-prev-blank")),
                 div(clazz("total-prev-header"), text("Total From Previous Page")),
                 div(clazz("total-prev-total-time")),
-                div(clazz("total-prev-pic")),
                 div(clazz("total-prev-landings")),
                 div(clazz("total-prev-pic-time")),
                 div(clazz("total-prev-dual-time")),
+                div(clazz("action")),
                 div(clazz("total-grand-blank")),
                 div(clazz("total-grand-header"), text("Total Time")),
                 div(clazz("total-grand-total-time")),
-                div(clazz("total-grand-pic")),
                 div(clazz("total-grand-landings")),
                 div(clazz("total-grand-pic-time")),
                 div(clazz("total-grand-dual-time")),
-            )
+                div(clazz("action")),
+            ),
+            div(clazz("pages"), ...pages),
         ])
     }))
 }
@@ -2275,13 +2409,15 @@ const aircraft = new EntityDescription<Aircraft>(
     "registration"
 )
     .field("registration", "Registration")
+    .field("model", "Model (ICAO)")
 
 interface Aircraft extends VersionedEntity {
     type: "aircraft"
     registration: string
+    model: string
 }
 
-type AircraftId = number
+type AircraftVersion = number
 
 // interface AircraftPerformance extends VersionedEntity {
 //     type: "performance"
@@ -2323,7 +2459,7 @@ type AerodromeVersion = number
 interface Trip extends VersionedEntity {
     type: "trip"
     name: string
-    aircraft: AircraftId | null
+    aircraft: AircraftVersion | null
 }
 
 type TripId = number
@@ -2412,11 +2548,11 @@ interface LogbookEntry extends VersionedEntity {
     page: number
     line: number
     date: Date | null
-    from: number | null
-    to: number | null
+    from: AerodromeVersion | null
+    to: AerodromeVersion | null
     departure: Time | null
     arrival: Time | null
-    aircraft: number | null
+    aircraft: AircraftVersion | null
     landings: number | null
     pic: Duration | null
     dual: Duration | null
@@ -2424,7 +2560,7 @@ interface LogbookEntry extends VersionedEntity {
 }
 
 
-function formatTime(hours: number | null) {
+function formatHHMM(hours: number | null): string {
     if (hours == null) {
         return ""
     } else {
@@ -2438,7 +2574,7 @@ function formatTime(hours: number | null) {
     }
 }
 
-function formatDuration(hours: number | null) {
+function formatMMSS(hours: number | null): string {
     if (hours == null) {
         return ""
     } else {
@@ -2450,6 +2586,18 @@ function formatDuration(hours: number | null) {
         let ss = s < 10 ? '0' + s : s
 
         return mm + ":" + ss
+    }
+}
+
+function formatDate(date: Date | null): string {
+    if (date == null) {
+        return ""
+    } else {
+        let dd = date.d < 10 ? '0' + date.d : date.d
+        let mm = date.m < 10 ? '0' + date.m : date.m
+        let yy = date.y < 10 ? '0' + date.y : date.y
+
+        return dd + "/" + mm + "/" + yy
     }
 }
 
@@ -2495,74 +2643,141 @@ function textInput(...mods: Component[]): Component {
 }
 
 function numberInput(val: Value<number | null>, min: number | null = null, max: number | null = null): Component {
-    return factory(() => {
-        let v = val.get()
-        let text = new Value(v === null? "" : v.toString())
-
-        let doOnBlur = () => {
-            let txt = text.get();
-            if(txt === "") {
-                val.set(null)
-            } else {
-                let num = Number.parseFloat(txt);
-                if(!isNaN(num) && !(min != null && num < min) && !(max != null && num > max)) {
-                    val.set(num)
-                }
-            }
-            let v = val.get();
-            text.set(v === null? "" : v.toString())
+    return conversionInput(val, (n) => n.toString(), (txt) => {
+        let num = Number.parseFloat(txt);
+        if(!isNaN(num) && !(min != null && num < min) && !(max != null && num > max)) {
+            return num
+        } else {
+            return null
         }
-
-        return textInput(value(text), onBlur(doOnBlur))
     })
 }
 
-function durationInput(val: Value<Duration | null>): Component {
-    return factory(() => {
-        let v = val.get()
-        let text = new Value(v === null? "" : formatDuration(v))
-
-        let doOnBlur = () => {
-            let txt = text.get();
-            if(txt === "") {
-                val.set(null)
-            } else {
-                if(txt.length == 4) {
-                    let mm = parseInt(txt.substring(0, 2));
-                    let ss = parseInt(txt.substring(2, 4));
-                    if(!isNaN(mm) && !isNaN(ss)) {
-                        val.set((mm + ss / 60)/60)
-                    }
-                }
-            }
-            let v = val.get();
-            text.set(v === null? "" : formatDuration(v))
+function timeInputMMSS(val: Value<Duration | Time | null>): Component {
+    return conversionInput(val, formatMMSS, (txt) => {
+        let mm: number
+        let ss: number
+        if(txt.length == 4) {
+            mm = parseInt(txt.substring(0, 2));
+            ss = parseInt(txt.substring(2, 4));
+        } else if(txt.length == 5 && txt[2] == ":") {
+            mm = parseInt(txt.substring(0, 2));
+            ss = parseInt(txt.substring(3, 5));
+        } else {
+            return null
         }
-
-        return textInput(value(text), onBlur(doOnBlur))
+        if(!isNaN(mm) && !isNaN(ss)) {
+            return (mm + ss / 60) / 60
+        } else {
+            return null
+        }
     })
 }
 
-function timeInput(val: Value<Time | null>): Component {
+function timeInputHHMM(val: Value<Time | Duration | null>): Component {
+    return conversionInput(val, formatHHMM, (txt) => {
+        let hh: number
+        let mm: number
+        if(txt.length == 4) {
+            hh = parseInt(txt.substring(0, 2));
+            mm = parseInt(txt.substring(2, 4));
+        } else if(txt.length == 5 && txt[2] == ":") {
+            hh = parseInt(txt.substring(0, 2));
+            mm = parseInt(txt.substring(3, 5));
+        } else {
+            return null
+        }
+        if(!isNaN(hh) && !isNaN(mm)) {
+            return hh + mm / 60
+        } else {
+            return null
+        }
+    })
+}
+
+function dateInput(val: Value<Date | null>): Component {
+    return conversionInput(val, formatDate, (txt) => {
+        let dd: number
+        let mm: number
+        let yy: number
+        if(txt.length == 6) {
+            dd = parseInt(txt.substring(0, 2));
+            mm = parseInt(txt.substring(2, 4));
+            yy = parseInt(txt.substring(4, 6));
+        } else if(txt.length == 8 && txt[2] == "/" && txt[5] == "/") {
+            dd = parseInt(txt.substring(0, 2));
+            mm = parseInt(txt.substring(3, 5));
+            yy = parseInt(txt.substring(6, 8));
+        } else {
+            return null
+        }
+        if(!isNaN(dd) && !isNaN(mm) && !isNaN(yy)) {
+            return { d: dd, m: mm, y: yy}
+        } else {
+            return null
+        }
+    })
+}
+
+function aerodromeInput(
+    aerodromes: Aerodrome[],
+    aerodrome: Value<Aerodrome | null>
+): Component {
+    return codeBasedInput(
+        aerodromes,
+        aerodrome,
+        (a) => a.code
+    )
+}
+
+function aircraftInput(
+    aircrafts: Aircraft[],
+    aircraft: Value<Aircraft | null>
+): Component {
+    return codeBasedInput(
+        aircrafts,
+        aircraft,
+        (a) => a.registration
+    )
+}
+
+function codeBasedInput<T>(
+    items: T[],
+    value: Value<T | null>,
+    toCode: (item: T) => string
+) {
+    return conversionInput(value, toCode, (str: string) => {
+        let maybeVal = items
+            .filter(a => toCode(a).toLowerCase() === str.toLowerCase())
+        if (maybeVal.length > 0) {
+            return maybeVal[0];
+        } else {
+            return null
+        }
+    })
+}
+
+function conversionInput<T>(
+    val: Value<T | null>,
+    toString: (v: T) => string,
+    fromString: (str: string) => T | null
+) {
     return factory(() => {
         let v = val.get()
-        let text = new Value(v === null? "" : formatTime(v))
+        let text = new Value(v === null? "" : toString(v))
 
         let doOnBlur = () => {
             let txt = text.get();
             if(txt === "") {
                 val.set(null)
             } else {
-                if(txt.length == 4) {
-                    let hh = parseInt(txt.substring(0, 2));
-                    let mm = parseInt(txt.substring(2, 4));
-                    if(!isNaN(hh) && !isNaN(mm)) {
-                        val.set(hh + mm / 60)
-                    }
+                let newVal = fromString(txt)
+                if(newVal !== null) {
+                    val.set(newVal)
                 }
             }
             let v = val.get();
-            text.set(v === null? "" : formatTime(v))
+            text.set(v === null? "" : toString(v))
         }
 
         return textInput(value(text), onBlur(doOnBlur))
@@ -2582,8 +2797,8 @@ function h1(...mods: Component[]): Component {
     return tag("h1", ...mods)
 }
 
-function a(...mods: Component[]): Component {
-    return tag("a", ...mods)
+function span(...mods: Component[]): Component {
+    return tag("span", ...mods)
 }
 
 function dropdown<T>(value: Value<T>, options: T[], toString: (option: T) => string): Component {

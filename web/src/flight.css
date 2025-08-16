@@ -209,14 +209,31 @@ div.calculate-button {
 canvas.test-canvas {
 }
 
+span.page {
+    margin-left: 10px;
+    cursor: default;
+}
+
+span.page.selected {
+    border-style: solid;
+    border-width: 0 0 1px 0;
+}
+
 div.logbook {
     display: grid;
-    grid-template-columns: 75px 50px 50px 50px 50px 50px 100px 75px 100px 75px 50px 50px;
+    grid-template-columns: 75px 50px 50px 50px 50px 50px 100px 75px 75px 50px 50px 200px;
     margin-top: 20px;
+}
+
+div.logbook input {
+    width: 100%;
+    border-style: none;
+    outline: none;
 }
 
 div.logbook > div {
     border-style: solid;
+    height: 21px;
 }
 
 div.logbook > div.date-header {
@@ -225,24 +242,28 @@ div.logbook > div.date-header {
     grid-column-start: 1;
     grid-column-end: 2;
     border-width: 2px 2px 1px 2px;
+    height: 55px;
 }
 
 div.logbook > div.departure-header {
     grid-column-start: 2;
     grid-column-end: 4;
     border-width: 2px 2px 1px 0;
+    height: 36px;
 }
 
 div.logbook > div.arrival-header {
     grid-column-start: 4;
     grid-column-end: 6;
     border-width: 2px 2px 1px 0;
+    height: 36px;
 }
 
 div.logbook > div.aircraft-header {
     grid-column-start: 6;
     grid-column-end: 8;
     border-width: 2px 2px 1px 0;
+    height: 36px;
 }
 
 div.logbook > div.total-time-header {
@@ -251,61 +272,74 @@ div.logbook > div.total-time-header {
     grid-column-start: 8;
     grid-column-end: 9;
     border-width: 2px 2px 1px 0;
-}
-
-div.logbook > div.pic-header {
-    grid-row-start: 1;
-    grid-row-end: 3;
-    grid-column-start: 9;
-    grid-column-end: 10;
-    border-width: 2px 2px 1px 0;
+    height: 55px;
 }
 
 div.logbook > div.landings-header {
     grid-row-start: 1;
     grid-row-end: 3;
-    grid-column-start: 10;
-    grid-column-end: 11;
+    grid-column-start: 9;
+    grid-column-end: 10;
     border-width: 2px 2px 1px 0;
+    height: 55px;
 }
 
 div.logbook > div.function-time-header {
-    grid-column-start: 11;
-    grid-column-end: 13;
+    grid-column-start: 10;
+    grid-column-end: 12;
     border-width: 2px 2px 1px 0;
+    height: 36px;
 }
 
 div.logbook > div.dep-place-header {
     border-width: 0 1px 1px 0;
+    height: 18px;
 }
 
 div.logbook > div.dep-time-header {
     border-width: 0 2px 1px 0;
+    height: 18px;
 }
 
 div.logbook > div.arr-place-header {
     border-width: 0 1px 1px 0;
+    height: 18px;
 }
 
 div.logbook > div.arr-time-header {
     border-width: 0 2px 1px 0;
+    height: 18px;
 }
 
 div.logbook > div.model-header {
     border-width: 0 1px 1px 0;
+    height: 18px;
 }
 
 div.logbook > div.registration-header {
     border-width: 0 2px 1px 0;
+    height: 18px;
 }
 
 div.logbook > div.pic-time-header {
     border-width: 0 1px 1px 0;
+    height: 18px;
 }
 
 div.logbook > div.dual-time-header {
     border-width: 0 2px 1px 0;
+    height: 18px;
 }
+
+div.logbook > div.action-header {
+    grid-row-start: 1;
+    grid-row-end: 3;
+    grid-column-start: 12;
+    grid-column-end: 13;
+    border-style: none;
+    height: 55px;
+}
+
 
 div.logbook > div.date {
     border-width: 0 2px 1px 2px;
@@ -339,10 +373,6 @@ div.logbook > div.total-time {
     border-width: 0 2px 1px 0;
 }
 
-div.logbook > div.pic {
-    border-width: 0 2px 1px 0;
-}
-
 div.logbook > div.landings {
     border-width: 0 2px 1px 0;
 }
@@ -355,10 +385,14 @@ div.logbook > div.dual-time {
     border-width: 0 2px 1px 0;
 }
 
+div.logbook > div.action {
+    border-style: none;
+}
+
 div.logbook > div.total-this-blank {
     grid-column-start: 1;
     grid-column-end: 6;
-    border-width: 0px 2px 0 2px;
+    border-width: 0 2px 0 2px;
 }
 
 div.logbook > div.total-this-header {
@@ -368,10 +402,6 @@ div.logbook > div.total-this-header {
 }
 
 div.logbook > div.total-this-total-time {
-    border-width: 1px 1px 1px 0;
-}
-
-div.logbook > div.total-this-pic {
     border-width: 1px 1px 1px 0;
 }
 
@@ -403,10 +433,6 @@ div.logbook > div.total-prev-total-time {
     border-width: 0 1px 1px 0;
 }
 
-div.logbook > div.total-prev-pic {
-    border-width: 0 1px 1px 0;
-}
-
 div.logbook > div.total-prev-landings {
     border-width: 0 1px 1px 0;
 }
@@ -435,10 +461,6 @@ div.logbook > div.total-grand-total-time {
     border-width: 0 1px 2px 0;
 }
 
-div.logbook > div.total-grand-pic {
-    border-width: 0 1px 2px 0;
-}
-
 div.logbook > div.total-grand-landings {
     border-width: 0 1px 2px 0;
 }
@@ -449,4 +471,8 @@ div.logbook > div.total-grand-pic-time {
 
 div.logbook > div.total-grand-dual-time {
     border-width: 0 2px 2px 0;
+}
+
+div.pages {
+    margin-top: 20px;
 }
