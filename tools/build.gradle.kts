@@ -3,7 +3,10 @@ plugins {
 }
 
 dependencies {
-    api(project(":backend"))
+    implementation(project(":backend"))
+
+    implementation(platform(libs.aws.bom))
+    implementation(libs.aws.dynamodb)
     implementation(libs.aws.sso)
 }
 
