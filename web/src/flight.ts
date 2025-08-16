@@ -1673,7 +1673,7 @@ function calculate(tripPlan: TripPlan): CalculatedTrip {
 
             let fuel: number | null
             if(ete != null && fuelFlow != null) {
-                fuel = fuelFlow * ete
+                fuel = fuelFlow * ete / 3600
             } else {
                 fuel = null
             }
