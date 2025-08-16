@@ -1663,7 +1663,7 @@ function calculate(tripPlan: TripPlan): CalculatedTrip {
             let ete: Duration | null
             if(leg.ete == null) {
                 if (gs != null && leg.distance != null) {
-                    ete = leg.distance / gs
+                    ete = leg.distance / gs * 3600
                 } else {
                     ete = null
                 }
@@ -2560,12 +2560,13 @@ interface LogbookEntry extends VersionedEntity {
 }
 
 
-function formatHHMM(hours: number | null): string {
-    if (hours == null) {
+function formatHHMM(seconds: number | null): string {
+    if (seconds == null) {
         return ""
     } else {
-        let h = Math.floor(hours)
-        let m = Math.round((hours - h) * 60)
+        let mins = Math.round(seconds / 60)
+        let h = Math.floor(mins / 60)
+        let m = mins - h * 60
 
         let hh = h < 10 ? '0' + h : h
         let mm = m < 10 ? '0' + m : m
@@ -2574,13 +2575,13 @@ function formatHHMM(hours: number | null): string {
     }
 }
 
-function formatMMSS(hours: number | null): string {
-    if (hours == null) {
+function formatMMSS(seconds: number | null): string {
+    if (seconds == null) {
         return ""
     } else {
-        let minutes = hours * 60
-        let m = Math.floor(minutes)
-        let s = Math.round((minutes - m) * 60)
+        let secs = Math.round(seconds)
+        let m = Math.floor(secs / 60)
+        let s = secs - m * 60
 
         let mm = m < 10 ? '0' + m : m
         let ss = s < 10 ? '0' + s : s
@@ -2667,7 +2668,7 @@ function timeInputMMSS(val: Value<Duration | Time | null>): Component {
             return null
         }
         if(!isNaN(mm) && !isNaN(ss)) {
-            return (mm + ss / 60) / 60
+            return mm * 60 + ss
         } else {
             return null
         }
@@ -2688,7 +2689,7 @@ function timeInputHHMM(val: Value<Time | Duration | null>): Component {
             return null
         }
         if(!isNaN(hh) && !isNaN(mm)) {
-            return hh + mm / 60
+            return (hh * 60 + mm) * 60
         } else {
             return null
         }
