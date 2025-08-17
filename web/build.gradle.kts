@@ -5,20 +5,23 @@ plugins {
 }
 
 tasks.register<Exec>("typescript") {
-    val inputFile = projectDir.resolve("src").resolve("flight.ts")
+    val inputDir = fileTree("src/ts")
+    val outputFile = project.layout.buildDirectory.file("flight.js")
+
     commandLine(
-        "tsc",
-        "--target", "es2019",
-        "--outDir", project.layout.buildDirectory.get(),
-        inputFile.toString()
+        listOf(
+            "tsc",
+            "--target", "es2019",
+            "--outFile", outputFile.get(),
+        ) + inputDir.toList<File>()
     )
-    inputs.file(inputFile)
-    outputs.file(project.layout.buildDirectory.file("flight.js"))
+
+    inputs.dir(inputDir)
+    outputs.file(outputFile)
 }
 
 tasks.register<Copy>("static") {
-    from(projectDir.resolve("src"))
-    exclude("*.ts")
+    from(projectDir.resolve("src").resolve("static"))
     into(project.layout.buildDirectory)
 }
 
