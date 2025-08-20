@@ -566,7 +566,7 @@ class TripPage {
         let calculated = calculate(tripPlan)
         let pages = printTrip(calculated)
 
-        window.fetch("https://api.dev.flight.daan.se/pdf", {
+        window.fetch(config.baseUrl + "/pdf", {
             method: 'POST',
             headers: {
                 "content-type": "application/json"
