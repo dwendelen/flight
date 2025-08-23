@@ -1,5 +1,4 @@
-
-class LogbookPage {
+class LogbookPage implements Page {
     aerodromes: Aerodrome[]
     aircrafts: Aircraft[]
 
@@ -245,6 +244,10 @@ class LogbookPage {
     dualTimeGrandTotal(currentPage: number): Duration {
         return this.dualTimeThisPage(currentPage)
             + this.dualTimePreviousPage(currentPage)
+    }
+
+    getComponent(): Component {
+        return logbook(this)
     }
 }
 

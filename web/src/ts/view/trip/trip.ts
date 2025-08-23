@@ -1,50 +1,5 @@
 
-class TripsPage {
-    page = new Value<Component>()
-    trips: Trip[]
-
-    constructor(private entityRepo: EntityRepo) {
-        this.openHome()
-    }
-
-    openHome() {
-        this.trips = this.entityRepo.getAllOfType<Trip>("trip")
-        this.page.set(tripsList(this))
-    }
-
-    openCreatePage() {
-        this.page.set(trip(new TripPage(this.entityRepo, this, null, null)))
-    }
-
-    open(trp: Trip) {
-        let maybePlan = (this.entityRepo.getAllOfType("plan") as TripPlan[])
-            .filter((tp: TripPlan) => tp.trip === trp.entity);
-        let plan: TripPlan | null
-        if(maybePlan.length === 0) {
-            plan = null
-        } else {
-            plan = maybePlan[0]
-        }
-        this.page.set(trip(new TripPage(this.entityRepo, this, trp, plan)))
-    }
-}
-
-function trips(tripsPage: TripsPage): Component {
-    return sub(tripsPage.page)
-}
-
-function tripsList(tripsPage: TripsPage): Component {
-    let trips = tripsPage.trips.map(t =>
-        div(text(t.name), onklick(() => tripsPage.open(t)))
-    );
-    return arr([
-        h1(text("Trips")),
-        button(text("Create"), onklick(() => tripsPage.openCreatePage())),
-        ...trips
-    ])
-}
-
-class TripPage {
+class TripPage implements Page {
     name: Value<string>
     powerSetting: Value<string | null>
     ias: Value<number | null>
@@ -53,16 +8,28 @@ class TripPage {
     firstStop: Value<StopElement | null>
     aerodromes: Aerodrome[]
 
-    constructor(private entityRepo: EntityRepo, private tripsPage: TripsPage, private trip: Trip | null, private tripPlan: TripPlan | null) {
+    private tripPlan: TripPlan | null
+
+    constructor(private entityRepo: EntityRepo, private trip: Trip | null) {
         this.aerodromes = entityRepo.getAllOfType("aerodrome")
 
         if(trip == null) {
-            this.name = new Value( "New Trip")
+            this.name = new Value("New Trip")
+            this.tripPlan = null
         } else {
             this.name = new Value(this.trip.name)
+            let maybePlan = (this.entityRepo.getAllOfType("plan") as TripPlan[])
+                .filter((tp: TripPlan) => tp.trip === trip.entity);
 
+            if(maybePlan.length === 0) {
+                this.tripPlan = null
+            } else {
+                this.tripPlan = maybePlan[0]
+            }
         }
-        if(tripPlan == null) {
+
+        let tripPlan = this.tripPlan
+        if(this.tripPlan == null) {
             this.firstStop = new Value(null)
             this.powerSetting = new Value(null)
             this.ias = new Value(null)
@@ -181,7 +148,6 @@ class TripPage {
         let tripPlan = this.toTripPlan(tripPlanVersion, planEntity, tripEntity);
 
         this.entityRepo.save([trip, tripPlan])
-        this.tripsPage.openHome()
     }
 
     private toTripPlan(tripPlanVersion: number, planEntity: number, tripEntity: number): TripPlan {
@@ -350,9 +316,13 @@ class TripPage {
             window.open(url)
         }) // TODO failure
     }
+
+    getComponent(): Component {
+        return trip(this)
+    }
 }
 
-function printTrip(trip: CalculatedTrip): Page[] {
+function printTrip(trip: CalculatedTrip): PdfPage[] {
     // 96 pixels per inch
     let a4_landscape_width = 29.7 / 2.54 * 96
     let a4_landscape_height = 21.0 / 2.54 * 96
@@ -411,7 +381,7 @@ function printTrip(trip: CalculatedTrip): Page[] {
     let plans = trip.plans
         .filter(p => p.waypoints.length > 0)
 
-    let pages: Page[] = []
+    let pages: PdfPage[] = []
     let nbPages = Math.ceil(plans.length / 2)
 
     for(let p = 0; p < nbPages; p++) {
@@ -1531,7 +1501,7 @@ function calculate(tripPlan: TripPlan): CalculatedTrip {
     }
 }
 
-interface Page {
+interface PdfPage {
     height: number,
     width: number,
     drawings: Drawing[]
@@ -1587,7 +1557,7 @@ interface ColorBox {
     color: Color
 }
 
-function draw(canvas: HTMLCanvasElement, pages: Page[]) {
+function draw(canvas: HTMLCanvasElement, pages: PdfPage[]) {
     let pixels = Math.sqrt(window.screen.height * window.screen.height + window.screen.width * window.screen.width);
     // In HTML, there are 96 pixels per inch
     // TODO make configurable
@@ -1620,7 +1590,7 @@ function draw(canvas: HTMLCanvasElement, pages: Page[]) {
         yOffset += pageMargin + Math.ceil(page.height * scale);
     }
 
-    function drawPage(xOffset: number, yOffset: number, page: Page) {
+    function drawPage(xOffset: number, yOffset: number, page: PdfPage) {
         ctx.resetTransform()
         ctx.translate(xOffset, yOffset)
         // ctx.scale(scale, scale);

@@ -26,15 +26,14 @@ function main() {
 
     let body = document.getElementsByTagName("body").item(0);
 
-    sub(application.page)(body)
+    sub(map(application.page, (p: Page) => p.getComponent()))(body)
 
     application.init()
 }
 
 class Application {
-    page: Value<Component> = new Value(loading())
+    page: Value<Page> = new Value(new LoadingPage())
     entityRepo: EntityRepo
-    sessionId: string | null = null
 
     constructor(
         private clientId: string,
@@ -46,15 +45,14 @@ class Application {
     init() {
         google.accounts.id.initialize({
             client_id: this.clientId,
-
             callback: (cred: CredentialResponse) =>
                 this.onGoogleLogin(cred)
         });
-        this.page.set(loginPage())
+        this.page.set(new LoginPage())
     }
 
     onGoogleLogin(cred: CredentialResponse) {
-        this.page.set(loading())
+        this.page.set(new LoadingPage())
         let googleLoginRequest: GoogleLoginRequest = {
             bearer: cred.credential
         }
@@ -69,35 +67,23 @@ class Application {
             return resp.json()
         }).then(json => {
             let loginResponse = json as LoginResponse;
-            this.sessionId = loginResponse.sessionId
+            let sessionId = loginResponse.sessionId
             if(loginResponse.userId == null) {
-                this.page.set(createAccountPage(this))
+                this.page.set(new CreateAccountPage(this, sessionId))
             } else {
-                this.loggedIn(loginResponse.userId);
+                this.loggedIn(loginResponse.userId, sessionId);
             }
         })
     }
 
-    createAccount() {
-        window.fetch(config.baseUrl + "/users", {
-            method: "POST",
-            headers: {"authorization": "Bearer " + this.sessionId},
-        }).then(resp => {
-            if(!resp.ok) {
-                throw "Create account failed"
-            }
-            return resp.json()
-        }).then(json => {
-            let createUserResponse = json as CreateUserResponse;
-            this.loggedIn(createUserResponse.userId);
-        })
-        this.page.set(loading())
+    openLoadingPage() {
+        this.page.set(new LoadingPage())
     }
 
-    private loggedIn(userId: string) {
-        this.entityRepo = this.entityRepoFactory(userId, this.sessionId)
+    loggedIn(userId: string, sessionId: string) {
+        this.entityRepo = this.entityRepoFactory(userId, sessionId)
         this.entityRepo.init(() => {
-            this.page.set(mainPage(new MainPage(this.entityRepo)))
+            this.page.set(new MainPage(this.entityRepo))
         })
     }
 }
@@ -115,98 +101,52 @@ interface CreateUserResponse {
     userId: string,
 }
 
-
-function loading(): Component {
-    return text("Loading ...")
-}
-
-function loginPage() {
-    return div(googleButton())
-}
-
-function createAccountPage(application: Application) {
-    return div(
-        text("No account detected."),
-        button(text("Create account"), onklick(() => application.createAccount()))
-    )
-}
-
-class MainPage {
-    page: Value<Component> = new Value(home())
-
-    constructor(private entityRepo: EntityRepo) {
-    }
-
-    openTrips() {
-        this.page.set(trips(new TripsPage(this.entityRepo)))
-    }
-
-    openManage() {
-        this.page.set(manage(new ManagePage(this.entityRepo)))
-    }
-
-    openLogbook() {
-        this.page.set(logbook(new LogbookPage(this.entityRepo)))
+class LoadingPage implements Page {
+    getComponent(): Component {
+        return text("Loading ...")
     }
 }
 
-function mainPage(mainPage: MainPage): Component {
-    return arr([
-        div(
-            clazz("navigation-bar"),
-            div(text("Trips"), onklick(() => mainPage.openTrips())),
-            div(text("Logbook"), onklick(() => mainPage.openLogbook())),
-            div(text("Manage"), onklick(() => mainPage.openManage()))
-        ),
-        div(
-            sub(mainPage.page)
+class LoginPage implements Page {
+    getComponent(): Component {
+        return div(googleButton())
+    }
+}
+
+class CreateAccountPage implements Page {
+    constructor(
+        private application: Application,
+        private sessionId: string
+    ) {
+    }
+
+    createAccount() {
+        window.fetch(config.baseUrl + "/users", {
+            method: "POST",
+            headers: {"authorization": "Bearer " + this.sessionId},
+        }).then(resp => {
+            if(!resp.ok) {
+                throw "Create account failed"
+            }
+            return resp.json()
+        }).then(json => {
+            let createUserResponse = json as CreateUserResponse;
+            this.application.loggedIn(createUserResponse.userId, this.sessionId);
+        })
+        this.application.openLoadingPage()
+    }
+
+    getComponent(): Component {
+        return div(
+            text("No account detected."),
+            button(text("Create account"), onklick(() => this.createAccount()))
         )
-    ])
-}
-
-function home(): Component {
-    return arr([])
-}
-
-
-class ManagePage {
-    page: Value<Component> = new Value(arr([]))
-    descriptions = [
-        aircraft,
-        aerodrome
-    ]
-
-    constructor(private entityRepo: EntityRepo) {
-
-    }
-
-    open<T extends VersionedEntity>(description: EntityDescription<T>) {
-        this.page.set(manageEntity(new ManageEntityPage<T>(this.entityRepo, description, this)))
-    }
-
-    showDetails<T extends VersionedEntity>(description: EntityDescription<T>, entity: T) {
-        this.page.set(showDetails(new ShowDetailsPage<T>(entity, description)))
-    }
-
-    create<T extends VersionedEntity>(description: EntityDescription<T>) {
-        this.page.set(createEntity(new CreatePage<T>(description, this.entityRepo, this)))
     }
 }
 
-function manage(managePage: ManagePage): Component {
-    let titles = managePage.descriptions
-        .map(e => div(text(e.name), onklick(() => managePage.open(e))),)
 
-    return arr([
-        div(
-            clazz("navigation-bar"),
-            ...titles
-        ),
-        div(
-            sub(managePage.page)
-        )
-    ])
-}
+
+
 
 
 

@@ -1,3 +1,4 @@
+
 type Component = (elem: HTMLElement) => Subscription
 
 function sub(val: View<Component>): Component {
