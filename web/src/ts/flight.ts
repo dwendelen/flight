@@ -6,13 +6,8 @@ interface Config {
 }
 declare var config: Config
 
-declare interface CredentialResponse {
-    credential: string // JWT
-    select_by: any
-}
-declare var google: any
-
 function main() {
+    initGoogle(config.googleClientId)
 
     let entityRepoFactory = (userId: string, sessionId: string) => {
         let localEngine = new IndexedDBEngine(userId, () => {});
@@ -22,83 +17,38 @@ function main() {
         let stream = new LocalRemoteVersionStream(local, remote);
         return new EntityRepo(stream)
     }
-    let application = new Application(config.googleClientId, entityRepoFactory);
+    let application = new Application(config.baseUrl, entityRepoFactory);
 
     let body = document.getElementsByTagName("body").item(0);
 
     sub(map(application.page, (p: Page) => p.getComponent()))(body)
-
-    application.init()
 }
 
 class Application {
-    page: Value<Page> = new Value(new LoadingPage())
+    page: Value<Page> = new Value(new LoginPage(this, config.baseUrl))
     entityRepo: EntityRepo
 
     constructor(
-        private clientId: string,
+        private baseUrl: string,
         private entityRepoFactory: (userId: string, sessionId: string) => EntityRepo
     ) {
 
-    }
-
-    init() {
-        google.accounts.id.initialize({
-            client_id: this.clientId,
-            callback: (cred: CredentialResponse) =>
-                this.onGoogleLogin(cred)
-        });
-        this.page.set(new LoginPage())
-    }
-
-    onGoogleLogin(cred: CredentialResponse) {
-        this.page.set(new LoadingPage())
-        let googleLoginRequest: GoogleLoginRequest = {
-            bearer: cred.credential
-        }
-        window.fetch(config.baseUrl + "/google-login", {
-            method: "POST",
-            headers: {"content-type": "application/json"},
-            body: JSON.stringify(googleLoginRequest)
-        }).then( resp => {
-            if(!resp.ok) {
-                throw "Login failed"
-            }
-            return resp.json()
-        }).then(json => {
-            let loginResponse = json as LoginResponse;
-            let sessionId = loginResponse.sessionId
-            if(loginResponse.userId == null) {
-                this.page.set(new CreateAccountPage(this, sessionId))
-            } else {
-                this.loggedIn(loginResponse.userId, sessionId);
-            }
-        })
     }
 
     openLoadingPage() {
         this.page.set(new LoadingPage())
     }
 
+    openCreateAccountPage(sessionId: string) {
+        this.page.set(new CreateAccountPage(this, sessionId, this.baseUrl))
+    }
+
     loggedIn(userId: string, sessionId: string) {
         this.entityRepo = this.entityRepoFactory(userId, sessionId)
         this.entityRepo.init(() => {
-            this.page.set(new MainPage(this.entityRepo))
+            this.page.set(new MainPage(this.baseUrl, this.entityRepo))
         })
     }
-}
-
-interface GoogleLoginRequest {
-    bearer: string
-}
-
-interface LoginResponse {
-    sessionId: string
-    userId: string | null
-}
-
-interface CreateUserResponse {
-    userId: string,
 }
 
 class LoadingPage implements Page {
@@ -106,49 +56,6 @@ class LoadingPage implements Page {
         return text("Loading ...")
     }
 }
-
-class LoginPage implements Page {
-    getComponent(): Component {
-        return div(googleButton())
-    }
-}
-
-class CreateAccountPage implements Page {
-    constructor(
-        private application: Application,
-        private sessionId: string
-    ) {
-    }
-
-    createAccount() {
-        window.fetch(config.baseUrl + "/users", {
-            method: "POST",
-            headers: {"authorization": "Bearer " + this.sessionId},
-        }).then(resp => {
-            if(!resp.ok) {
-                throw "Create account failed"
-            }
-            return resp.json()
-        }).then(json => {
-            let createUserResponse = json as CreateUserResponse;
-            this.application.loggedIn(createUserResponse.userId, this.sessionId);
-        })
-        this.application.openLoadingPage()
-    }
-
-    getComponent(): Component {
-        return div(
-            text("No account detected."),
-            button(text("Create account"), onklick(() => this.createAccount()))
-        )
-    }
-}
-
-
-
-
-
-
 
 
 
@@ -173,32 +80,6 @@ class CreateAccountPage implements Page {
 //     ias: number
 //     fuelFlow: number
 // }
-
-
-
-
-
-
-
-
-
-
-
-
-// HTML
-
-
-
-function googleButton(): Component {
-    return (elem: HTMLDivElement) => {
-        google.accounts.id.renderButton(elem, { theme: "outline", size: "large" })
-        return () => {}
-    }
-}
-
-
-// Core
-
 
 window.onload = () => {
     main()

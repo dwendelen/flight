@@ -1,11 +1,14 @@
 class MainPage implements Page, PageNavigator {
     page: Value<Page> = new Value(new EmptyPage())
 
-    constructor(private entityRepo: EntityRepo) {
+    constructor(
+        private baseUrl: string,
+        private entityRepo: EntityRepo
+    ) {
     }
 
     openTrips() {
-        this.page.set(new TripsPage(this.entityRepo, this))
+        this.page.set(new TripsPage(this.baseUrl, this.entityRepo, this))
     }
 
     openManage() {

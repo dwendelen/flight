@@ -1,16 +1,20 @@
 class TripsPage implements Page {
     trips: Trip[]
 
-    constructor(private entityRepo: EntityRepo, private navigator: PageNavigator) {
+    constructor(
+        private baseUrl: string,
+        private entityRepo: EntityRepo,
+        private navigator: PageNavigator
+    ) {
         this.trips = this.entityRepo.getAllOfType<Trip>("trip")
     }
 
     openCreatePage() {
-        this.navigator.open(new TripPage(this.entityRepo, null))
+        this.navigator.open(new TripPage(this.baseUrl, this.entityRepo, null))
     }
 
     open(trp: Trip) {
-        this.navigator.open(new TripPage(this.entityRepo, trp))
+        this.navigator.open(new TripPage(this.baseUrl, this.entityRepo, trp))
     }
 
     getComponent(): Component {

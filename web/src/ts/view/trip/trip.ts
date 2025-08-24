@@ -10,7 +10,11 @@ class TripPage implements Page {
 
     private tripPlan: TripPlan | null
 
-    constructor(private entityRepo: EntityRepo, private trip: Trip | null) {
+    constructor(
+        private baseUrl: string,
+        private entityRepo: EntityRepo,
+        private trip: Trip | null
+    ) {
         this.aerodromes = entityRepo.getAllOfType("aerodrome")
 
         if(trip == null) {
@@ -299,7 +303,7 @@ class TripPage implements Page {
         let calculated = calculate(tripPlan)
         let pages = printTrip(calculated)
 
-        window.fetch(config.baseUrl + "/pdf", {
+        window.fetch(this.baseUrl + "/pdf", {
             method: 'POST',
             headers: {
                 "content-type": "application/json"
