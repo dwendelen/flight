@@ -233,7 +233,7 @@ class TripPage implements Page {
             ias: this.ias.get(),
             tas: this.tas.get(),
             fuelFlow: this.fuelFlow.get(),
-            fuelContingency: 0.05, // TODO
+            fuelContingencyFactor: 1.05, // TODO
             finalReserve: 1800, // TODO
             preTakeoffTime: 720, // TODO
             preTakeoffFuel: 2, // TODO
@@ -293,14 +293,14 @@ class TripPage implements Page {
 
     generateFakePdf() {
         let tripPlan = this.toTripPlan(-1, -1, -1)
-        let calculated = calculate(tripPlan)
+        let calculated = calculatePlan(tripPlan)
         let pages = printTrip(calculated)
         draw(document.getElementById("test-canvas") as HTMLCanvasElement, pages);
     }
 
     generatePdf() {
         let tripPlan = this.toTripPlan(-1, -1, -1)
-        let calculated = calculate(tripPlan)
+        let calculated = calculatePlan(tripPlan)
         let pages = printTrip(calculated)
 
         window.fetch(this.baseUrl + "/pdf", {

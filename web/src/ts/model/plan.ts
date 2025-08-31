@@ -8,7 +8,7 @@ interface TripPlan extends VersionedEntity {
     tas: number | null
     fuelFlow: number | null
     variation: number | null // TODO input
-    fuelContingency: number | null // TODO input
+    fuelContingencyFactor: number | null // TODO input
     finalReserve: Duration | null // TODO input // TODO to seconds
     preTakeoffTime: Duration | null // TODO input // TODO to seconds
     preTakeoffFuel: number | null // TODO input
@@ -95,13 +95,8 @@ interface CalculatedLeg {
 const RADIANS_PER_DEGREE = 2 * Math.PI / 360
 const DEGREES_PER_RADIAN = 1 / RADIANS_PER_DEGREE
 
-function calculate(tripPlan: TripPlan): CalculatedTrip {
-    let fuelFlow: number | null
-    if(tripPlan.fuelFlow != null && tripPlan.fuelContingency != null) {
-        fuelFlow = tripPlan.fuelFlow * (1 + tripPlan.fuelContingency)
-    } else {
-        fuelFlow = null
-    }
+function calculatePlan(tripPlan: TripPlan): CalculatedTrip {
+    let fuelFlow = mul(tripPlan.fuelFlow, tripPlan.fuelContingencyFactor)
 
     let plans: CalculatedPlan[] = tripPlan.flightPlans.map(fp => {
         let waypoints = fp.waypoints.map(wp => {
@@ -114,51 +109,25 @@ function calculate(tripPlan: TripPlan): CalculatedTrip {
             }
         });
         let legs = fp.legs.map(leg => {
-            let mt: number | null
-            if(tripPlan.variation != null && leg.trueTrack != null) {
-                mt = leg.trueTrack - tripPlan.variation;
-            } else {
-                mt = null
-            }
+            let mt = subt(leg.trueTrack, tripPlan.variation)
 
-            let th: number | null
-            let gs: number | null
-            if(leg.trueTrack != null && tripPlan.tas != null && leg.windDirection != null && leg.windVelocity != null) {
-                let relative_wind_radians = RADIANS_PER_DEGREE * (leg.windDirection + 180 - leg.trueTrack);
-                let cross = leg.windVelocity * Math.sin(relative_wind_radians)
-                let tail = leg.windVelocity * Math.cos(relative_wind_radians)
-                let drift_radians = Math.asin(cross/tripPlan.tas)
-                gs = tripPlan.tas * Math.cos(drift_radians) + tail
-                th = leg.trueTrack - (drift_radians * DEGREES_PER_RADIAN)
-            } else {
-                gs = null
-                th = null
-            }
+            let relative_wind_radians = mul(RADIANS_PER_DEGREE, subt(add(leg.windDirection, 180), leg.trueTrack));
+            let cross = mul(leg.windVelocity, sin(relative_wind_radians))
+            let tail = mul(leg.windVelocity, cos(relative_wind_radians))
+            let drift_radians = asin(divi(cross, tripPlan.tas))
+            let gs = add(mul(tripPlan.tas, cos(drift_radians)), tail)
+            let th = subt(leg.trueTrack, mul(drift_radians, DEGREES_PER_RADIAN))
 
-            let mh: number | null
-            if(tripPlan.variation != null && th != null) {
-                mh = th - tripPlan.variation
-            } else {
-                mh = null
-            }
+            let mh = subt(th, tripPlan.variation)
 
             let ete: Duration | null
             if(leg.ete == null) {
-                if (gs != null && leg.distance != null) {
-                    ete = leg.distance / gs * 3600
-                } else {
-                    ete = null
-                }
+                ete = hoursToDuration(divi(leg.distance, gs))
             } else {
                 ete = leg.ete
             }
 
-            let fuel: number | null
-            if(ete != null && fuelFlow != null) {
-                fuel = fuelFlow * ete / 3600
-            } else {
-                fuel = null
-            }
+            let fuel = mul(fuelFlow, durationToHours(ete))
 
             return {
                 leg: leg,
@@ -182,29 +151,25 @@ function calculate(tripPlan: TripPlan): CalculatedTrip {
             for (let i = idx + 1; i < waypoints.length; i++) {
                 let extra = 0
                 if(waypoints[i - 1].type === "take-off") {
-                    // TODO if null
-                    extra += tripPlan.postTakeoffTime + tripPlan.preTakeoffTime
+                    extra = add(extra, add(tripPlan.postTakeoffTime, tripPlan.preTakeoffTime))
                 }
                 if(waypoints[i].type === "landing") {
-                    // TODO if null
-                    extra += tripPlan.preLandingTime + tripPlan.postLandingTime
+                    extra = add(extra, add(tripPlan.preLandingTime, tripPlan.postLandingTime))
                 }
                 if(legs[i - 1].ete != null) {
-                    waypoints[i].eta = waypoints[i - 1].eta + legs[i - 1].ete + extra
+                    waypoints[i].eta = add(waypoints[i - 1].eta, add(legs[i - 1].ete, extra))
                 }
             }
             for (let i = idx - 1; i >= 0; i--) {
                 let extra = 0
                 if(waypoints[i].type === "take-off") {
-                    // TODO if null
-                    extra += tripPlan.postTakeoffTime + tripPlan.preTakeoffTime
+                    extra = add(extra, add(tripPlan.postTakeoffTime, tripPlan.preTakeoffTime))
                 }
                 if(waypoints[i + 1].type === "landing") {
-                    // TODO if null
-                    extra += tripPlan.preLandingTime + tripPlan.postLandingTime
+                    extra = add(extra, add(tripPlan.preLandingTime, tripPlan.postLandingTime))
                 }
                 if(legs[i].ete != null) {
-                    waypoints[i].eta = waypoints[i + 1].eta - legs[i].ete - extra
+                    waypoints[i].eta = subt(waypoints[i + 1].eta, add(legs[i].ete, extra))
                 }
             }
         }
@@ -214,8 +179,7 @@ function calculate(tripPlan: TripPlan): CalculatedTrip {
         }
     })
 
-    // TODO null-checks
-    let fuel = fuelFlow * tripPlan.finalReserve / 3600
+    let fuel = mul(fuelFlow, durationToHours(tripPlan.finalReserve))
     for (let i = plans.length - 1; i >= 0; i--) {
         let plan = plans[i]
         let waypoints = plan.waypoints;
@@ -225,14 +189,12 @@ function calculate(tripPlan: TripPlan): CalculatedTrip {
         for (let j = plan.waypoints.length - 2; j >= 0; j--) {
             let extra = 0
             if(waypoints[j].type === "take-off") {
-                // TODO if null
-                extra += fuelFlow * tripPlan.postTakeoffTime / 3600 + tripPlan.preTakeoffFuel
+                extra = add(extra, add(mul(fuelFlow, durationToHours(tripPlan.postTakeoffTime)), tripPlan.preTakeoffFuel))
             }
             if(waypoints[j + 1].type === "landing") {
-                // TODO if null
-                extra += fuelFlow * tripPlan.preLandingTime / 3600 + tripPlan.postLandingFuel
+                extra = add(extra, add(mul(fuelFlow, durationToHours(tripPlan.preLandingTime)), tripPlan.postLandingFuel))
             }
-            fuel = fuel + plan.legs[j].fuel + extra
+            fuel = add(fuel, add(plan.legs[j].fuel, extra))
             waypoints[j].fuel = fuel
         }
     }
@@ -242,6 +204,70 @@ function calculate(tripPlan: TripPlan): CalculatedTrip {
         ias: tripPlan.ias,
         plans: plans,
     }
+}
+
+function mul(a: number | null, b: number | null): number | null {
+    if(a == null || b == null) {
+        return null
+    } else {
+        return a * b
+    }
+}
+
+function divi(a: number | null, b: number | null): number | null {
+    if(a == null || b == null) {
+        return null
+    } else {
+        return a / b
+    }
+}
+
+function add(a: number | null, b: number | null): number | null {
+    if(a == null || b == null) {
+        return null
+    } else {
+        return a + b
+    }
+}
+
+function subt(a: number | null, b: number | null): number | null {
+    if(a == null || b == null) {
+        return null
+    } else {
+        return a - b
+    }
+}
+
+function cos(a: number | null): number | null {
+    if(a === null) {
+        return null
+    } else {
+        return Math.cos(a)
+    }
+}
+
+function sin(a: number | null): number | null {
+    if(a === null) {
+        return null
+    } else {
+        return Math.sin(a)
+    }
+}
+
+function asin(a: number | null): number | null {
+    if(a === null) {
+        return null
+    } else {
+        return Math.asin(a)
+    }
+}
+
+function hoursToDuration(h: number | null): number | null {
+    return mul(h, 3600)
+}
+
+function durationToHours(d: Duration | null): number | null {
+    return divi(d, 3600)
 }
 
 function printTrip(trip: CalculatedTrip): PdfPage[] {

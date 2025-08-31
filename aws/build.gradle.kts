@@ -29,6 +29,12 @@ fun registerTerraform(environment: String) {
         commandLine("terraform", "init")
         standardInput = System.`in`
     }
+    tasks.register("refresh-terraform-$environment", Exec::class) {
+        group = "deploy"
+        workingDir(projectDir.resolve("src/tf/$environment"))
+        commandLine("terraform", "refresh")
+        standardInput = System.`in`
+    }
 }
 
 registerTerraform("dev")
