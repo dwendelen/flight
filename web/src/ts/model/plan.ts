@@ -304,6 +304,86 @@ function durationToHours(d: Duration | null): number | null {
     return divi(d, 3600)
 }
 
+interface Chunk {
+    firstWaypoint: number
+    waypoints: CalculatedWaypoint[]
+    legs: CalculatedLeg[]
+}
+
+function splitIntoChunks(trip: CalculatedTrip): Chunk[] {
+    let plans = trip.plans
+        .filter(p => p.waypoints.length > 0)
+
+    let chunks: Chunk[] = []
+    let maxY = 26
+
+    for (let plan of plans) {
+        let firstWaypoint = 0
+        let waypoints: CalculatedWaypoint[] = []
+        let legs: CalculatedLeg[] = []
+
+        let y = 0
+        let l = 0
+
+        if(plan.waypoints[l].type === "landing" || plan.waypoints[l].type === "take-off") {
+            y += 2
+        } else {
+            y++
+        }
+        waypoints.push(plan.waypoints[l])
+
+        while(l < plan.legs.length) {
+            let leg = plan.legs[l]
+            let nextY = y
+            if(leg.notes.length > 0) {
+                nextY += 2 + leg.notes.length
+            } else {
+                nextY += 1
+            }
+            let waypoint = plan.waypoints[l + 1]
+            if(waypoint.type === "landing" || waypoint.type === "take-off") {
+                nextY += 2
+            } else {
+                nextY++
+            }
+            if(nextY <= maxY) {
+                legs.push(leg)
+                waypoints.push(waypoint)
+                y = nextY
+                l++
+            } else {
+                chunks.push({
+                    firstWaypoint: firstWaypoint,
+                    waypoints: waypoints,
+                    legs: legs
+                })
+                // TODO protect against infinite loop
+                l--
+                waypoints = []
+                legs = []
+                y = 0
+                if(plan.waypoints[l].type === "landing" || plan.waypoints[l].type === "take-off") {
+                    y += 2
+                } else {
+                    y++
+                }
+                waypoints.push(plan.waypoints[l])
+                firstWaypoint = l
+            }
+        }
+
+        if(legs.length > 0) {
+            chunks.push({
+                firstWaypoint: firstWaypoint,
+                waypoints: waypoints,
+                legs: legs
+            })
+        }
+    }
+
+    return chunks
+}
+
 function printTrip(trip: CalculatedTrip): PdfPage[] {
     // 96 pixels per inch
     let a4_landscape_width = 29.7 / 2.54 * 96
@@ -360,18 +440,17 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
         }
     }
 
-    let plans = trip.plans
-        .filter(p => p.waypoints.length > 0)
+   let chunks = splitIntoChunks(trip);
 
     let pages: PdfPage[] = []
-    let nbPages = Math.ceil(plans.length / 2)
+    let nbPages = Math.ceil(chunks.length / 2)
 
     for(let p = 0; p < nbPages; p++) {
         let drawings = []
 
-        printPlan(plans[p], drawings, 0)
+        printPlan(chunks[p], drawings, 0)
         let p2 = nbPages + p
-        if(p2 < plans.length) {
+        if(p2 < chunks.length) {
             drawings.push({
                 type: "line",
                 start: { y: margin, x: halfWidth },
@@ -380,7 +459,7 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
                 style: "dotted",
                 dotDistance: 3
             })
-            printPlan(plans[p2], drawings, halfWidth)
+            printPlan(chunks[p2], drawings, halfWidth)
         }
 
         pages.push({
@@ -390,7 +469,7 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
         })
     }
 
-    function printPlan(plan: CalculatedPlan, drawings: Drawing[], xOffset: number) {
+    function printPlan(chunk: Chunk, drawings: Drawing[], xOffset: number) {
         function colorBox(y: number, x: number, h: number, w: number, color: Color): ColorBox {
             return {
                 type: "colorbox",
@@ -474,20 +553,20 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
         )
         // First the colors: Waypoints
         let y = 3
-        for (let i = 0; i < plan.waypoints.length; i++) {
+        for (let i = 0; i < chunk.waypoints.length; i++) {
             drawings.push(
-                colorBox(y, 0, 1, 8.5, wpColors[i % wpColors.length])
+                colorBox(y, 0, 1, 8.5, wpColors[(chunk.firstWaypoint + i) % wpColors.length])
             )
             y++
-            if(plan.waypoints[i].type === "take-off" || plan.waypoints[i].type === "landing") {
+            if(chunk.waypoints[i].type === "take-off" || chunk.waypoints[i].type === "landing") {
                 drawings.push(
-                    colorBox(y, 0, 1, 8.5, wpColors[i % wpColors.length])
+                    colorBox(y, 0, 1, 8.5, wpColors[(chunk.firstWaypoint + i) % wpColors.length])
                 )
                 y++
             }
-            if (i < plan.legs.length) {
-                y += 1 + plan.legs[i].notes.length
-                if(plan.legs[i].notes.length > 0) {
+            if (i < chunk.legs.length) {
+                y += 1 + chunk.legs[i].notes.length
+                if(chunk.legs[i].notes.length > 0) {
                     y++
                 }
             }
@@ -519,11 +598,11 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
         ]);
 
         y = 3
-        for (let i = 0; i < plan.waypoints.length; i++) {
-            let last = i === plan.waypoints.length - 1;
+        for (let i = 0; i < chunk.waypoints.length; i++) {
+            let last = i === chunk.waypoints.length - 1;
 
             // Waypoint
-            let waypoint = plan.waypoints[i]
+            let waypoint = chunk.waypoints[i]
 
             let bottomLineWidth = last? 2: 1
             let bottomLOffset = last? -1: 0
@@ -602,7 +681,7 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
             }
             if(!last) {
                 // Leg
-                let leg = plan.legs[i]
+                let leg = chunk.legs[i]
                 drawings.push(...[
                     hor(y + 1, 0, 8.5, 1, 0, 0),
 
