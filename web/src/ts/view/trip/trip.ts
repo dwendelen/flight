@@ -100,7 +100,6 @@ class TripPage implements Page {
                                         new Value(leg.windVelocity),
                                         new Value(leg.altitude),
                                         new Value(leg.msa),
-                                        new Value(leg.ete),
                                         mapNote(0)
                                     )
                                 }
@@ -204,7 +203,6 @@ class TripPage implements Page {
                             windVelocity: leg.windVelocity.get(),
                             altitude: leg.altitude.get(),
                             msa: leg.msa.get(),
-                            ete: leg.ete.get(),
                             notes: notes
                         })
                         visitWaypoint(leg.next)
@@ -235,12 +233,10 @@ class TripPage implements Page {
             fuelFlow: this.fuelFlow.get(),
             fuelContingencyFactor: 1.05, // TODO
             finalReserve: 1800, // TODO
-            preTakeoffTime: 720, // TODO
-            preTakeoffFuel: 2, // TODO
-            postTakeoffTime: 60, // TODO
-            preLandingTime: 240, // TODO
-            postLandingTime: 360, // TODO
-            postLandingFuel: 1, // TODO
+            takeoffTime: 720, // TODO
+            takeoffFuel: 3, // TODO
+            landingTime: 600, // TODO
+            landingFuel: 3, // TODO
         };
     }
 
@@ -492,7 +488,6 @@ function newLegElement(next: WaypointElement): LegElement {
         new Value(null),
         new Value(null),
         new Value(null),
-        new Value(null),
         null,
     )
 }
@@ -555,7 +550,6 @@ class LegElement {
         public readonly windVelocity: Value<number | null>,
         public readonly altitude: Value<number | null>,
         public readonly msa: Value<number | null>,
-        public readonly ete: Value<Duration | null>,
         public readonly firstNote: NoteElement | null
     ) {
     }
@@ -615,7 +609,6 @@ class LegElement {
             this.windVelocity,
             this.altitude,
             this.msa,
-            this.ete,
             this.firstNote
         )
     }
@@ -629,7 +622,6 @@ class LegElement {
             this.windVelocity,
             this.altitude,
             this.msa,
-            this.ete,
             firstNote
         )
     }
@@ -689,12 +681,10 @@ function trip(tripPage: TripPage) {
             clazz("parameters"),
             div(text("Contingency Fuel")), div(text("5%")),
             div(text("Final Reserve")), div(text("30:00")),
-            div(text("Pre-Take-off Time")), div(text("12:00")),
-            div(text("Pre-Take-off Fuel")), div(text("2L")),
-            div(text("Post-Take-off Time")), div(text("01:00")),
-            div(text("Pre-Landing Time")), div(text("04:00")),
-            div(text("Post-Landing Time")), div(text("06:00")),
-            div(text("Post-Landing Fuel")), div(text("1L")),
+            div(text("Take-off Time")), div(text("12:00")),
+            div(text("Take-off Fuel")), div(text("3L")),
+            div(text("Landing Time")), div(text("10:00")),
+            div(text("Landing Fuel")), div(text("3L")),
         ),
         div(
             clazz("perfo"),
@@ -849,7 +839,7 @@ function renderPostWaypointElement(
             div(clazz("leg-wind-vel"), numberInput(legElement.windVelocity, 0)),
             div(clazz("leg-alt"), numberInput(legElement.altitude)),
             div(clazz("leg-msa"), numberInput(legElement.msa)),
-            div(clazz("leg-et"), timeInputMMSS(legElement.ete)),
+            div(clazz("leg-et")),
             div(clazz("leg-action"), button(text("Insert Waypoint"), onklick(() => { tripPage.insertWaypointAfter(flightElement, waypointElement) }))),
             div(clazz("note-pre")),
             div(clazz("note-insert"), button(text("Insert Note"), onklick(() => { tripPage.insertNoteAfter(flightElement, legElement, null) }))),

@@ -10,12 +10,10 @@ interface TripPlan extends VersionedEntity {
     variation: number | null // TODO input
     fuelContingencyFactor: number | null // TODO input
     finalReserve: Duration | null // TODO input // TODO to seconds
-    preTakeoffTime: Duration | null // TODO input // TODO to seconds
-    preTakeoffFuel: number | null // TODO input
-    postTakeoffTime: Duration | null // TODO input // TODO to seconds
-    preLandingTime:  Duration | null // TODO input // TODO to seconds
-    postLandingTime:  Duration | null // TODO input // TODO to seconds
-    postLandingFuel: number | null // TODO input
+    takeoffTime: Duration | null // TODO input // TODO to seconds
+    takeoffFuel: number | null // TODO input
+    landingTime:  Duration | null // TODO input // TODO to seconds
+    landingFuel: number | null // TODO input
     stops: Stop[]
     flightPlans: FlightPlan[]
 }
@@ -50,7 +48,6 @@ interface Leg  {
     windVelocity: number | null
     altitude: number | null
     msa: number | null
-    ete: number | null
     notes: Note[]
 }
 
@@ -78,6 +75,8 @@ interface CalculatedWaypoint {
     alt: number | null
     fuel: number | null
     eta: Time | null
+    blockFuel: number | null
+    blockEta: Time | null
 }
 
 interface CalculatedLeg {
@@ -99,13 +98,27 @@ function calculatePlan(tripPlan: TripPlan): CalculatedTrip {
     let fuelFlow = mul(tripPlan.fuelFlow, tripPlan.fuelContingencyFactor)
 
     let plans: CalculatedPlan[] = tripPlan.flightPlans.map(fp => {
-        let waypoints = fp.waypoints.map(wp => {
-            return {
-                type: wp.type,
-                name: wp.name,
-                alt: wp.altitude,
-                fuel: null,
-                eta: wp.eta
+        let waypoints: CalculatedWaypoint[] = fp.waypoints.map(wp => {
+            if(wp.type === "landing" || wp.type === "take-off") {
+                return {
+                    type: wp.type,
+                    name: wp.name,
+                    alt: wp.altitude,
+                    fuel: null,
+                    eta: null,
+                    blockFuel: null,
+                    blockEta: wp.eta
+                }
+            } else {
+                return {
+                    type: wp.type,
+                    name: wp.name,
+                    alt: wp.altitude,
+                    fuel: null,
+                    eta: wp.eta,
+                    blockFuel: null,
+                    blockEta: null
+                }
             }
         });
         let legs = fp.legs.map(leg => {
@@ -120,12 +133,7 @@ function calculatePlan(tripPlan: TripPlan): CalculatedTrip {
 
             let mh = subt(th, tripPlan.variation)
 
-            let ete: Duration | null
-            if(leg.ete == null) {
-                ete = hoursToDuration(divi(leg.distance, gs))
-            } else {
-                ete = leg.ete
-            }
+            let ete = hoursToDuration(divi(leg.distance, gs))
 
             let fuel = mul(fuelFlow, durationToHours(ete))
 
@@ -143,33 +151,54 @@ function calculatePlan(tripPlan: TripPlan): CalculatedTrip {
         });
         // Calculate ETA
         let nbFixedETAs = waypoints
-            .filter(wp => wp.eta != null)
+            .filter(wp => wp.eta != null || wp.blockEta != null)
             .length
         if(nbFixedETAs == 1) {
             let idx = waypoints
-                .findIndex(wp => wp.eta != null);
+                .findIndex(wp => wp.eta != null || wp.blockEta != null);
+            let time: Time
+            if(waypoints[idx].type === "landing") {
+                waypoints[idx].eta = subt(waypoints[idx].blockEta, tripPlan.landingTime)
+                time = waypoints[idx].blockEta
+            } else if(waypoints[idx].type === "take-off") {
+                waypoints[idx].eta = add(waypoints[idx].blockEta, tripPlan.takeoffTime)
+                time = waypoints[idx].eta
+            } else {
+                time = waypoints[idx].eta
+            }
             for (let i = idx + 1; i < waypoints.length; i++) {
-                let extra = 0
-                if(waypoints[i - 1].type === "take-off") {
-                    extra = add(extra, add(tripPlan.postTakeoffTime, tripPlan.preTakeoffTime))
+                time = add(time, legs[i - 1].ete)
+
+                if(waypoints[i].type === "take-off") {
+                    waypoints[i].blockEta = time
+                    time = add(time, tripPlan.takeoffTime)
                 }
+
+                waypoints[i].eta = time
+
                 if(waypoints[i].type === "landing") {
-                    extra = add(extra, add(tripPlan.preLandingTime, tripPlan.postLandingTime))
-                }
-                if(legs[i - 1].ete != null) {
-                    waypoints[i].eta = add(waypoints[i - 1].eta, add(legs[i - 1].ete, extra))
+                    time = add(time, tripPlan.landingTime)
+                    waypoints[i].blockEta = time
                 }
             }
+            if(waypoints[idx].type === "take-off") {
+                time = waypoints[idx].blockEta
+            } else {
+                time = waypoints[idx].eta
+            }
             for (let i = idx - 1; i >= 0; i--) {
-                let extra = 0
+                time = subt(time, legs[i].ete)
+
+                if(waypoints[i].type === "landing") {
+                    waypoints[i].blockEta = time
+                    time = subt(time, tripPlan.landingTime)
+                }
+
+                waypoints[i].eta = time
+
                 if(waypoints[i].type === "take-off") {
-                    extra = add(extra, add(tripPlan.postTakeoffTime, tripPlan.preTakeoffTime))
-                }
-                if(waypoints[i + 1].type === "landing") {
-                    extra = add(extra, add(tripPlan.preLandingTime, tripPlan.postLandingTime))
-                }
-                if(legs[i].ete != null) {
-                    waypoints[i].eta = subt(waypoints[i + 1].eta, add(legs[i].ete, extra))
+                    time = subt(time, tripPlan.takeoffTime)
+                    waypoints[i].blockEta = time
                 }
             }
         }
@@ -186,16 +215,21 @@ function calculatePlan(tripPlan: TripPlan): CalculatedTrip {
 
         waypoints[waypoints.length - 1].fuel = fuel
 
-        for (let j = plan.waypoints.length - 2; j >= 0; j--) {
-            let extra = 0
-            if(waypoints[j].type === "take-off") {
-                extra = add(extra, add(mul(fuelFlow, durationToHours(tripPlan.postTakeoffTime)), tripPlan.preTakeoffFuel))
+        for (let j = plan.waypoints.length - 1; j >= 0; j--) {
+            if(j < plan.legs.length) {
+                fuel = add(fuel, plan.legs[j].fuel)
             }
-            if(waypoints[j + 1].type === "landing") {
-                extra = add(extra, add(mul(fuelFlow, durationToHours(tripPlan.preLandingTime)), tripPlan.postLandingFuel))
+            if(waypoints[j].type === "landing") {
+                waypoints[j].blockFuel = fuel
+                fuel = add(fuel, tripPlan.landingFuel)
             }
-            fuel = add(fuel, add(plan.legs[j].fuel, extra))
+
             waypoints[j].fuel = fuel
+
+            if(waypoints[j].type === "take-off") {
+                fuel = add(fuel, tripPlan.takeoffFuel)
+                waypoints[j].blockFuel = fuel
+            }
         }
     }
 
@@ -444,8 +478,15 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
             drawings.push(
                 colorBox(y, 0, 1, 8.5, wpColors[i % wpColors.length])
             )
+            y++
+            if(plan.waypoints[i].type === "take-off" || plan.waypoints[i].type === "landing") {
+                drawings.push(
+                    colorBox(y, 0, 1, 8.5, wpColors[i % wpColors.length])
+                )
+                y++
+            }
             if (i < plan.legs.length) {
-                y += 2 + plan.legs[i].notes.length
+                y += 1 + plan.legs[i].notes.length
                 if(plan.legs[i].notes.length > 0) {
                     y++
                 }
@@ -477,65 +518,96 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
             ltext(2, 7.5, "AT"),
         ]);
 
-
         y = 3
-        for (let i = 0; i < plan.legs.length; i++) {
+        for (let i = 0; i < plan.waypoints.length; i++) {
+            let last = i === plan.waypoints.length - 1;
+
+            // Waypoint
             let waypoint = plan.waypoints[i]
-            let leg = plan.legs[i]
-            drawings.push(...[
-                hor(y + 1, 0, 8.5, 1, 0, 0),
-                hor(y + 2, 0, 8.5, 1, 0, 0),
 
-                ver(y, 0, 2, 2, 0, 0),
-                ver(y + 1, 1, 1, 1, 0, 0),
-                ver(y + 1, 2, 1, 2, 0, 0),
-                ver(y, 3, 2, 2, 0, 0),
-                ver(y, 4, 2, 1, 0, 0),
-                ver(y, 5, 2, 2, 0, 0),
-                ver(y, 6, 2, 2, 0, 0),
-                ver(y, 7.5, 2, 1, 0, 0),
-                ver(y, 8.5, 2, 2, 0, 0),
+            let bottomLineWidth = last? 2: 1
+            let bottomLOffset = last? -1: 0
+            let bottomROffset = last? 1: 0
+            let bottomBOffset = last? 1: 0
 
-                ltext(y, 0, waypoint.name),
-                rtext(y, 4, formatInt(waypoint.alt)),
-                rtext(y, 6, formatFuel(waypoint.fuel)),
-                ltext(y, 6, formatHHMM(waypoint.eta)),
+            if(waypoint.type === "take-off") {
+                let verLength = last? 2: 3
+                drawings.push(...[
+                    hor(y + 1, 0, 8.5, 1, 0, 0),
+                    hor(y + 2, 0, 8.5, bottomLineWidth, bottomLOffset, bottomROffset),
 
-                rtext(y + 1, 1, formatInt(leg.mh)),
-                rtext(y + 1, 2, formatInt(leg.mt)),
-                rtext(y + 1, 3, formatInt(leg.gs)),
-                rtext(y + 1, 4, formatInt(leg.alt)),
-                rtext(y + 1, 5, formatInt(leg.msa)),
-                rtext(y + 1, 6, formatFuel(leg.fuel)),
-                rtext(y + 1, 7.5, formatMMSS(leg.ete))
-            ])
-            y += 2
-            for (let n = 0; n < leg.notes.length; n++) {
-                let note = leg.notes[n]
-                drawings.push(
-                    ver(y, 0, 2, 2, 0, 0),
-                    ver(y, 8.5, 2, 2, 0, 0),
+                    ver(y, 0, verLength, 2, 0, bottomBOffset),
+                    ver(y, 3, verLength, 2, 0, 0),
+                    ver(y, 4, verLength, 1, 0, 0),
+                    ver(y, 5, verLength, 2, 0, 0),
+                    ver(y, 6, verLength, 2, 0, 0),
+                    ver(y, 7.5, verLength, 1, 0, 0),
+                    ver(y, 8.5, verLength, 2, 0, bottomBOffset),
 
-                    rtext(y, 2, formatMMSS(note.time)),
-                    ltext(y, 2, note.note),
-                    ltext(y, 6, note.number),
-                )
+                    ltext(y, 0, waypoint.name + " - Block"),
+                    rtext(y, 4, formatInt(waypoint.alt)),
+                    rtext(y, 6, formatFuel(waypoint.blockFuel)),
+                    ltext(y, 6, formatHHMM(waypoint.blockEta)),
+
+                    ltext(y + 1, 0, waypoint.name + " - Airborn"),
+                    rtext(y + 1, 4, formatInt(waypoint.alt)),
+                    rtext(y + 1, 6, formatFuel(waypoint.fuel)),
+                    ltext(y + 1, 6, formatHHMM(waypoint.eta)),
+                ])
+                y += 2
+            } else if(waypoint.type === "landing") {
+                let verLength = last? 2: 3
+                drawings.push(...[
+                    hor(y + 1, 0, 8.5, 1, 0, 0),
+                    hor(y + 2, 0, 8.5, bottomLineWidth, bottomLOffset, bottomROffset),
+
+                    ver(y, 0, verLength, 2, 0, bottomBOffset),
+                    ver(y, 3, verLength, 2, 0, 0),
+                    ver(y, 4, verLength, 1, 0, 0),
+                    ver(y, 5, verLength, 2, 0, 0),
+                    ver(y, 6, verLength, 2, 0, 0),
+                    ver(y, 7.5, verLength, 1, 0, 0),
+                    ver(y, 8.5, verLength, 2, 0, bottomBOffset),
+
+                    ltext(y, 0, waypoint.name + " - Circuit"),
+                    rtext(y, 4, formatInt(waypoint.alt)),
+                    rtext(y, 6, formatFuel(waypoint.fuel)),
+                    ltext(y, 6, formatHHMM(waypoint.eta)),
+
+                    ltext(y + 1, 0, waypoint.name + " - Block"),
+                    rtext(y + 1, 4, formatInt(waypoint.alt)),
+                    rtext(y + 1, 6, formatFuel(waypoint.blockFuel)),
+                    ltext(y + 1, 6, formatHHMM(waypoint.blockEta)),
+                ])
+                y += 2
+            } else {
+                let verLength = last? 1: 2
+                drawings.push(...[
+                    hor(y + 1, 0, 8.5, bottomLineWidth, bottomLOffset, bottomROffset),
+
+                    ver(y, 0, verLength, 2, 0, bottomBOffset),
+                    ver(y, 3, verLength, 2, 0, 0),
+                    ver(y, 4, verLength, 1, 0, 0),
+                    ver(y, 5, verLength, 2, 0, 0),
+                    ver(y, 6, verLength, 2, 0, 0),
+                    ver(y, 7.5, verLength, 1, 0, 0),
+                    ver(y, 8.5, verLength, 2, 0, bottomBOffset),
+
+                    ltext(y, 0, waypoint.name),
+                    rtext(y, 4, formatInt(waypoint.alt)),
+                    rtext(y, 6, formatFuel(waypoint.fuel)),
+                    ltext(y, 6, formatHHMM(waypoint.eta)),
+                ])
                 y++
             }
-            if(leg.notes.length > 0) {
-                drawings.push(
-                    hor(y, 0, 8.5, 1, 0, 0),
+            if(!last) {
+                // Leg
+                let leg = plan.legs[i]
+                drawings.push(...[
                     hor(y + 1, 0, 8.5, 1, 0, 0),
 
-                    ver(y, 0, 1, 2, 0, 0),
                     ver(y, 1, 1, 1, 0, 0),
                     ver(y, 2, 1, 2, 0, 0),
-                    ver(y, 3, 1, 2, 0, 0),
-                    ver(y, 4, 1, 1, 0, 0),
-                    ver(y, 5, 1, 2, 0, 0),
-                    ver(y, 6, 1, 2, 0, 0),
-                    ver(y, 7.5, 1, 1, 0, 0),
-                    ver(y, 8.5, 1, 2, 0, 0),
 
                     rtext(y, 1, formatInt(leg.mh)),
                     rtext(y, 2, formatInt(leg.mt)),
@@ -544,30 +616,49 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
                     rtext(y, 5, formatInt(leg.msa)),
                     rtext(y, 6, formatFuel(leg.fuel)),
                     rtext(y, 7.5, formatMMSS(leg.ete))
-                )
+                ])
                 y++
+                for (let n = 0; n < leg.notes.length; n++) {
+                    let note = leg.notes[n]
+                    drawings.push(
+                        ver(y, 0, 2, 2, 0, 0),
+                        ver(y, 8.5, 2, 2, 0, 0),
+
+                        rtext(y, 2, formatMMSS(note.time)),
+                        ltext(y, 2, note.note),
+                        ltext(y, 6, note.number),
+                    )
+                    y++
+                }
+                if(leg.notes.length > 0) {
+                    drawings.push(
+                        hor(y, 0, 8.5, 1, 0, 0),
+                        hor(y + 1, 0, 8.5, 1, 0, 0),
+
+                        ver(y, 0, 1, 2, 0, 0),
+                        ver(y, 1, 1, 1, 0, 0),
+                        ver(y, 2, 1, 2, 0, 0),
+                        ver(y, 3, 1, 2, 0, 0),
+                        ver(y, 4, 1, 1, 0, 0),
+                        ver(y, 5, 1, 2, 0, 0),
+                        ver(y, 6, 1, 2, 0, 0),
+                        ver(y, 7.5, 1, 1, 0, 0),
+                        ver(y, 8.5, 1, 2, 0, 0),
+
+                        rtext(y, 1, formatInt(leg.mh)),
+                        rtext(y, 2, formatInt(leg.mt)),
+                        rtext(y, 3, formatInt(leg.gs)),
+                        rtext(y, 4, formatInt(leg.alt)),
+                        rtext(y, 5, formatInt(leg.msa)),
+                        rtext(y, 6, formatFuel(leg.fuel)),
+                        rtext(y, 7.5, formatMMSS(leg.ete))
+                    )
+                    y++
+                }
             }
         }
 
-        let lastWpIdx = plan.legs.length;
-        let lastWaypoint = plan.waypoints[lastWpIdx]
-        drawings.push(...[
-            hor(y + 1, 0, 8.5, 2, -1, 1),
-
-            ver(y, 0, 1, 2, 0, 1),
-            ver(y, 3, 1, 2, 0, 0),
-            ver(y, 4, 1, 1, 0, 0),
-            ver(y, 5, 1, 2, 0, 0),
-            ver(y, 6, 1, 2, 0, 0),
-            ver(y, 7.5, 1, 1, 0, 0),
-            ver(y, 8.5, 1, 2, 0, 1),
-
-            ltext(y, 0, lastWaypoint.name),
-            rtext(y, 4, formatInt(lastWaypoint.alt)),
-            rtext(y, 6, formatFuel(lastWaypoint.fuel)),
-            ltext(y, 6, formatHHMM(lastWaypoint.eta)),
-        ])
-        y+= 2
+        y++
 
         let firstLine = y + 1 + (y % 2)
         for (let i = firstLine; i <= 33; i += 2) {
