@@ -38,6 +38,23 @@ function formatHHMM(seconds: number | null): string {
     }
 }
 
+function formatHHMMt(seconds: number | null): string {
+    if (seconds == null) {
+        return ""
+    } else {
+        let halfMinutes = Math.round(seconds / 30)
+        let h = Math.floor(halfMinutes / 120)
+        let m = Math.floor((halfMinutes - h * 120) / 2)
+        let t = halfMinutes % 2
+
+        let hh = h < 10 ? '0' + h : h
+        let mm = m < 10 ? '0' + m : m
+        let tt = t === 0 ? ' ' : '\''
+
+        return hh + ":" + mm + tt
+    }
+}
+
 function formatMMSS(seconds: number | null): string {
     if (seconds == null) {
         return ""
@@ -50,6 +67,21 @@ function formatMMSS(seconds: number | null): string {
         let ss = s < 10 ? '0' + s : s
 
         return mm + ":" + ss
+    }
+}
+
+function formatMMt(seconds: number | null): string {
+    if (seconds == null) {
+        return ""
+    } else {
+        let halfMinutes = Math.round(seconds / 30)
+        let m = Math.floor(halfMinutes / 2)
+        let t = halfMinutes % 2
+
+        let mm = m < 10 ? '0' + m : m
+        let tt = t === 0 ? ' ' : '\''
+
+        return mm + tt
     }
 }
 

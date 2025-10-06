@@ -15,11 +15,15 @@ val buildAwsZip = tasks.register("buildAwsZip", Zip::class) {
     }
 }
 
-fun registerTerraform(environment: String) {
+fun registerTerraform(environment: String, autoApprove: Boolean) {
     tasks.register("terraform-$environment", Exec::class) {
         group = "deploy"
         workingDir(projectDir.resolve("src/tf/$environment"))
-        commandLine("terraform", "apply", "-refresh=false")
+        if(autoApprove) {
+            commandLine("terraform", "apply", "-refresh=false", "--auto-approve")
+        } else {
+            commandLine("terraform", "apply", "-refresh=false")
+        }
         standardInput = System.`in`
         dependsOn(buildAwsZip, buildAwsLibZip, project(":web").tasks.named("assemble"))
     }
@@ -37,6 +41,6 @@ fun registerTerraform(environment: String) {
     }
 }
 
-registerTerraform("dev")
+registerTerraform("dev", true)
 //registerTerraform("tst")
-registerTerraform("prd")
+registerTerraform("prd", false)

@@ -549,18 +549,18 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
 
         // First the colors: Header
         drawings.push(
-            colorBox(2, 0, 1, 8.5, lightGrey)
+            colorBox(2, 0, 1, 8, lightGrey)
         )
         // First the colors: Waypoints
         let y = 3
         for (let i = 0; i < chunk.waypoints.length; i++) {
             drawings.push(
-                colorBox(y, 0, 1, 8.5, wpColors[(chunk.firstWaypoint + i) % wpColors.length])
+                colorBox(y, 0, 1, 8, wpColors[(chunk.firstWaypoint + i) % wpColors.length])
             )
             y++
             if(chunk.waypoints[i].type === "take-off" || chunk.waypoints[i].type === "landing") {
                 drawings.push(
-                    colorBox(y, 0, 1, 8.5, wpColors[(chunk.firstWaypoint + i) % wpColors.length])
+                    colorBox(y, 0, 1, 8, wpColors[(chunk.firstWaypoint + i) % wpColors.length])
                 )
                 y++
             }
@@ -574,8 +574,8 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
 
         // Header
         drawings.push(...[
-            hor(2, 0, 8.5, 2, -1, 1),
-            hor(3, 0, 8.5, 2, -1, 1),
+            hor(2, 0, 8, 2, -1, 1),
+            hor(3, 0, 8, 2, -1, 1),
 
             ver(2, 0, 1, 2, -1, 1),
             ver(2, 1, 1, 1, -1, 1),
@@ -584,8 +584,8 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
             ver(2, 4, 1, 1, -1, 1),
             ver(2, 5, 1, 2, -1, 1),
             ver(2, 6, 1, 2, -1, 1),
-            ver(2, 7.5, 1, 1, -1, 1),
-            ver(2, 8.5, 1, 2, -1, 1),
+            ver(2, 7, 1, 1, -1, 1),
+            ver(2, 8, 1, 2, -1, 1),
 
             ltext(2, 0, "MH"),
             ltext(2, 1, "MT"),
@@ -594,7 +594,7 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
             ltext(2, 4, "MSA"),
             ltext(2, 5, "Fuel"),
             ltext(2, 6, "ET"),
-            ltext(2, 7.5, "AT"),
+            ltext(2, 7, "AT"),
         ]);
 
         y = 3
@@ -612,70 +612,70 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
             if(waypoint.type === "take-off") {
                 let verLength = last? 2: 3
                 drawings.push(...[
-                    hor(y + 1, 0, 8.5, 1, 0, 0),
-                    hor(y + 2, 0, 8.5, bottomLineWidth, bottomLOffset, bottomROffset),
+                    hor(y + 1, 0, 8, 1, 0, 0),
+                    hor(y + 2, 0, 8, bottomLineWidth, bottomLOffset, bottomROffset),
 
                     ver(y, 0, verLength, 2, 0, bottomBOffset),
                     ver(y, 3, verLength, 2, 0, 0),
                     ver(y, 4, verLength, 1, 0, 0),
                     ver(y, 5, verLength, 2, 0, 0),
                     ver(y, 6, verLength, 2, 0, 0),
-                    ver(y, 7.5, verLength, 1, 0, 0),
-                    ver(y, 8.5, verLength, 2, 0, bottomBOffset),
+                    ver(y, 7, verLength, 1, 0, 0),
+                    ver(y, 8, verLength, 2, 0, bottomBOffset),
 
                     ltext(y, 0, waypoint.name + " - Block"),
                     rtext(y, 4, formatInt(waypoint.alt)),
                     rtext(y, 6, formatFuel(waypoint.blockFuel)),
-                    ltext(y, 6, formatHHMM(waypoint.blockEta)),
+                    // ltext(y, 6, formatHHMMt(waypoint.blockEta)),
 
                     ltext(y + 1, 0, waypoint.name + " - Airborn"),
                     rtext(y + 1, 4, formatInt(waypoint.alt)),
                     rtext(y + 1, 6, formatFuel(waypoint.fuel)),
-                    ltext(y + 1, 6, formatHHMM(waypoint.eta)),
+                    // ltext(y + 1, 6, formatHHMMt(waypoint.eta)),
                 ])
                 y += 2
             } else if(waypoint.type === "landing") {
                 let verLength = last? 2: 3
                 drawings.push(...[
-                    hor(y + 1, 0, 8.5, 1, 0, 0),
-                    hor(y + 2, 0, 8.5, bottomLineWidth, bottomLOffset, bottomROffset),
+                    hor(y + 1, 0, 8, 1, 0, 0),
+                    hor(y + 2, 0, 8, bottomLineWidth, bottomLOffset, bottomROffset),
 
                     ver(y, 0, verLength, 2, 0, bottomBOffset),
                     ver(y, 3, verLength, 2, 0, 0),
                     ver(y, 4, verLength, 1, 0, 0),
                     ver(y, 5, verLength, 2, 0, 0),
                     ver(y, 6, verLength, 2, 0, 0),
-                    ver(y, 7.5, verLength, 1, 0, 0),
-                    ver(y, 8.5, verLength, 2, 0, bottomBOffset),
+                    ver(y, 7, verLength, 1, 0, 0),
+                    ver(y, 8, verLength, 2, 0, bottomBOffset),
 
                     ltext(y, 0, waypoint.name + " - Circuit"),
                     rtext(y, 4, formatInt(waypoint.alt)),
                     rtext(y, 6, formatFuel(waypoint.fuel)),
-                    ltext(y, 6, formatHHMM(waypoint.eta)),
+                    // ltext(y, 6, formatHHMMt(waypoint.eta)),
 
                     ltext(y + 1, 0, waypoint.name + " - Block"),
                     rtext(y + 1, 4, formatInt(waypoint.alt)),
                     rtext(y + 1, 6, formatFuel(waypoint.blockFuel)),
-                    ltext(y + 1, 6, formatHHMM(waypoint.blockEta)),
+                    // ltext(y + 1, 6, formatHHMMt(waypoint.blockEta)),
                 ])
                 y += 2
             } else {
                 let verLength = last? 1: 2
                 drawings.push(...[
-                    hor(y + 1, 0, 8.5, bottomLineWidth, bottomLOffset, bottomROffset),
+                    hor(y + 1, 0, 8, bottomLineWidth, bottomLOffset, bottomROffset),
 
                     ver(y, 0, verLength, 2, 0, bottomBOffset),
                     ver(y, 3, verLength, 2, 0, 0),
                     ver(y, 4, verLength, 1, 0, 0),
                     ver(y, 5, verLength, 2, 0, 0),
                     ver(y, 6, verLength, 2, 0, 0),
-                    ver(y, 7.5, verLength, 1, 0, 0),
-                    ver(y, 8.5, verLength, 2, 0, bottomBOffset),
+                    ver(y, 7, verLength, 1, 0, 0),
+                    ver(y, 8, verLength, 2, 0, bottomBOffset),
 
                     ltext(y, 0, waypoint.name),
                     rtext(y, 4, formatInt(waypoint.alt)),
                     rtext(y, 6, formatFuel(waypoint.fuel)),
-                    ltext(y, 6, formatHHMM(waypoint.eta)),
+                    // ltext(y, 6, formatHHMMt(waypoint.eta)),
                 ])
                 y++
             }
@@ -683,7 +683,7 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
                 // Leg
                 let leg = chunk.legs[i]
                 drawings.push(...[
-                    hor(y + 1, 0, 8.5, 1, 0, 0),
+                    hor(y + 1, 0, 8, 1, 0, 0),
 
                     ver(y, 1, 1, 1, 0, 0),
                     ver(y, 2, 1, 2, 0, 0),
@@ -694,14 +694,14 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
                     rtext(y, 4, formatInt(leg.alt)),
                     rtext(y, 5, formatInt(leg.msa)),
                     rtext(y, 6, formatFuel(leg.fuel)),
-                    rtext(y, 7.5, formatMMSS(leg.ete))
+                    rtext(y, 7, formatMMt(leg.ete))
                 ])
                 y++
                 for (let n = 0; n < leg.notes.length; n++) {
                     let note = leg.notes[n]
                     drawings.push(
                         ver(y, 0, 2, 2, 0, 0),
-                        ver(y, 8.5, 2, 2, 0, 0),
+                        ver(y, 8, 2, 2, 0, 0),
 
                         rtext(y, 2, formatMMSS(note.time)),
                         ltext(y, 2, note.note),
@@ -711,8 +711,8 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
                 }
                 if(leg.notes.length > 0) {
                     drawings.push(
-                        hor(y, 0, 8.5, 1, 0, 0),
-                        hor(y + 1, 0, 8.5, 1, 0, 0),
+                        hor(y, 0, 8, 1, 0, 0),
+                        hor(y + 1, 0, 8, 1, 0, 0),
 
                         ver(y, 0, 1, 2, 0, 0),
                         ver(y, 1, 1, 1, 0, 0),
@@ -721,8 +721,8 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
                         ver(y, 4, 1, 1, 0, 0),
                         ver(y, 5, 1, 2, 0, 0),
                         ver(y, 6, 1, 2, 0, 0),
-                        ver(y, 7.5, 1, 1, 0, 0),
-                        ver(y, 8.5, 1, 2, 0, 0),
+                        ver(y, 7, 1, 1, 0, 0),
+                        ver(y, 8, 1, 2, 0, 0),
 
                         rtext(y, 1, formatInt(leg.mh)),
                         rtext(y, 2, formatInt(leg.mt)),
@@ -730,7 +730,7 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
                         rtext(y, 4, formatInt(leg.alt)),
                         rtext(y, 5, formatInt(leg.msa)),
                         rtext(y, 6, formatFuel(leg.fuel)),
-                        rtext(y, 7.5, formatMMSS(leg.ete))
+                        rtext(y, 7, formatMMt(leg.ete))
                     )
                     y++
                 }
@@ -742,7 +742,7 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
         let firstLine = y + 1 + (y % 2)
         for (let i = firstLine; i <= 33; i += 2) {
             drawings.push(
-                dotted(i, 0, 8.5, 1, 0, 0),
+                dotted(i, 0, 8, 1, 0, 0),
             )
         }
     }
