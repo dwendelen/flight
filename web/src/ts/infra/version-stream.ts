@@ -211,7 +211,7 @@ class LocalRemoteVersionStream implements VersionStream {
     load(first: number, onEntity: (entity: VersionedEntity) => void, onComplete: () => void) {
         let nextId = first
         this.local.load(first, (entity) => {
-            nextId = entity.entity + 1
+            nextId = entity.version + 1
             onEntity(entity)
         }, () => {
             this.remote.load(nextId, (entity) => {
