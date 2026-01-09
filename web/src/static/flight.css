@@ -221,7 +221,7 @@ span.page.selected {
 
 div.logbook {
     display: grid;
-    grid-template-columns: 75px 50px 50px 50px 50px 50px 100px 75px 75px 50px 50px 200px;
+    grid-template-columns: 75px 50px 50px 50px 50px 50px 100px 75px 50px 50px 50px 50px 200px;
     margin-top: 20px;
 }
 
@@ -276,17 +276,15 @@ div.logbook > div.total-time-header {
 }
 
 div.logbook > div.landings-header {
-    grid-row-start: 1;
-    grid-row-end: 3;
     grid-column-start: 9;
-    grid-column-end: 10;
+    grid-column-end: 11;
     border-width: 2px 2px 1px 0;
-    height: 55px;
+    height: 36px;
 }
 
 div.logbook > div.function-time-header {
-    grid-column-start: 10;
-    grid-column-end: 12;
+    grid-column-start: 11;
+    grid-column-end: 13;
     border-width: 2px 2px 1px 0;
     height: 36px;
 }
@@ -321,6 +319,16 @@ div.logbook > div.registration-header {
     height: 18px;
 }
 
+div.logbook > div.landings-day-header {
+    border-width: 0 2px 1px 0;
+    height: 18px;
+}
+
+div.logbook > div.landings-night-header {
+    border-width: 0 2px 1px 0;
+    height: 18px;
+}
+
 div.logbook > div.pic-time-header {
     border-width: 0 1px 1px 0;
     height: 18px;
@@ -334,8 +342,8 @@ div.logbook > div.dual-time-header {
 div.logbook > div.action-header {
     grid-row-start: 1;
     grid-row-end: 3;
-    grid-column-start: 12;
-    grid-column-end: 13;
+    grid-column-start: 13;
+    grid-column-end: 14;
     border-style: none;
     height: 55px;
 }
@@ -373,7 +381,11 @@ div.logbook > div.total-time {
     border-width: 0 2px 1px 0;
 }
 
-div.logbook > div.landings {
+div.logbook > div.landings-day {
+    border-width: 0 2px 1px 0;
+}
+
+div.logbook > div.landings-night {
     border-width: 0 2px 1px 0;
 }
 
@@ -408,7 +420,12 @@ div.logbook > div.total-this-total-time {
     height: 36px;
 }
 
-div.logbook > div.total-this-landings {
+div.logbook > div.total-this-landings-day {
+    border-width: 1px 1px 1px 0;
+    height: 36px;
+}
+
+div.logbook > div.total-this-landings-night {
     border-width: 1px 1px 1px 0;
     height: 36px;
 }
@@ -442,7 +459,12 @@ div.logbook > div.total-prev-total-time {
     height: 36px;
 }
 
-div.logbook > div.total-prev-landings {
+div.logbook > div.total-prev-landings-day {
+    border-width: 0 1px 1px 0;
+    height: 36px;
+}
+
+div.logbook > div.total-prev-landings-night {
     border-width: 0 1px 1px 0;
     height: 36px;
 }
@@ -476,7 +498,12 @@ div.logbook > div.total-grand-total-time {
     height: 36px;
 }
 
-div.logbook > div.total-grand-landings {
+div.logbook > div.total-grand-landings-day {
+    border-width: 0 1px 2px 0;
+    height: 36px;
+}
+
+div.logbook > div.total-grand-landings-night {
     border-width: 0 1px 2px 0;
     height: 36px;
 }
