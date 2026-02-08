@@ -31,7 +31,7 @@ class LoginPage implements Page {
         }).then(json => {
             let loginResponse = json as LoginResponse;
             let sessionId = loginResponse.sessionId
-            if(loginResponse.userId == null) {
+            if(loginResponse.userId === null) {
                 this.application.openCreateAccountPage(sessionId)
             } else {
                 this.application.loggedIn(loginResponse.userId, sessionId);

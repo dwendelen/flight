@@ -4,7 +4,7 @@ class LogbookPage implements Page {
 
     pages: (LogbookEntry | null)[][] = []
     page: Value<number>
-    editing: number | null
+    editing: number | null = null
 
     // Edit fields
     date: Value<Date | null>
@@ -15,6 +15,7 @@ class LogbookPage implements Page {
     aircraft: Value<Aircraft | null>
     landingsDay: Value<number | null>
     landingsNight: Value<number | null>
+    night: Value<Duration | null>
     pic: Value<Duration | null>
     dual: Value<Duration | null>
 
@@ -53,6 +54,7 @@ class LogbookPage implements Page {
             this.aircraft = new Value(null)
             this.landingsDay = new Value(null)
             this.landingsNight = new Value(null)
+            this.night = new Value(null)
             this.pic = new Value(null)
             this.dual = new Value(null)
         } else {
@@ -62,8 +64,9 @@ class LogbookPage implements Page {
             this.departure = new Value(entry.departure)
             this.arrival = new Value(entry.arrival)
             this.aircraft = new Value(entry.aircraft === null? null: this.entityRepo.getByVersion<Aircraft>(entry.aircraft))
-            this.landingsDay = new Value(entry.landings)
+            this.landingsDay = new Value(entry.landingsDay)
             this.landingsNight = new Value(entry.landingsNight)
+            this.night = new Value(entry.night)
             this.pic = new Value(entry.pic)
             this.dual = new Value(entry.dual)
         }
@@ -72,7 +75,7 @@ class LogbookPage implements Page {
         let updateTotalTime = () => {
             let dep = this.departure.get();
             let arr = this.arrival.get();
-            if(dep == null || arr == null) {
+            if(dep === null || arr === null) {
                 this.totalTime.set(null)
             } else {
                 this.totalTime.set(arr - dep)
@@ -95,13 +98,14 @@ class LogbookPage implements Page {
             page: this.page.get(),
             line: this.editing,
             date: this.date.get(),
-            from: this.from.get() == null? null: this.from.get().version,
-            to: this.to.get() == null? null: this.to.get().version,
+            from: this.from.get() === null? null: this.from.get().version,
+            to: this.to.get() === null? null: this.to.get().version,
             departure: this.departure.get(),
             arrival: this.arrival.get(),
-            aircraft: this.aircraft.get() == null? null: this.aircraft.get().version,
-            landings: this.landingsDay.get(),
+            aircraft: this.aircraft.get() === null? null: this.aircraft.get().version,
+            landingsDay: this.landingsDay.get(),
             landingsNight: this.landingsNight.get(),
+            night: this.night.get(),
             pic: this.pic.get(),
             dual: this.dual.get(),
             trip: null
@@ -139,7 +143,7 @@ class LogbookPage implements Page {
     }
 
     aerodromeCode(ver: AerodromeVersion): string {
-        if(ver == null) {
+        if(ver === null) {
             return ""
         } else {
             return this.entityRepo.getByVersion<Aerodrome>(ver).code
@@ -147,7 +151,7 @@ class LogbookPage implements Page {
     }
 
     aircraftRegistration(ver: AircraftVersion): string {
-        if(ver == null) {
+        if(ver === null) {
             return ""
         } else {
             return this.entityRepo.getByVersion<Aircraft>(ver).registration
@@ -155,7 +159,7 @@ class LogbookPage implements Page {
     }
 
     aircraftModel(ver: AircraftVersion): string {
-        if(ver == null) {
+        if(ver === null) {
             return ""
         } else {
             return this.entityRepo.getByVersion<Aircraft>(ver).model
@@ -163,7 +167,7 @@ class LogbookPage implements Page {
     }
 
     totalTimeOf(entry: LogbookEntry | null): number | null {
-        if(entry == null || entry.departure == null || entry.arrival == null) {
+        if(entry === null || entry.departure === null || entry.arrival === null) {
             return null
         } else {
             return entry.arrival - entry.departure
@@ -179,28 +183,35 @@ class LogbookPage implements Page {
 
     landingsDayThisPage(currentPage: number): Duration {
         return this.pages[currentPage]
-            .map(e => e == null? null: e.landings)
+            .map(e => e === null? null: e.landingsDay)
             .map(l => l === null? 0: l)
             .reduce((a, b) => a + b, 0)
     }
 
     landingsNightThisPage(currentPage: number): Duration {
         return this.pages[currentPage]
-            .map(e => e == null? null: e.landingsNight)
+            .map(e => e === null? null: e.landingsNight)
             .map(l => l === null || typeof l === "undefined" ? 0: l)
             .reduce((a, b) => a + b, 0)
     }
 
+    nightTimeThisPage(currentPage: number): Duration {
+        return this.pages[currentPage]
+            .map(e => e === null? null: e.night)
+            .map(t => t === null? 0: t)
+            .reduce((a, b) => a + b)
+    }
+
     picTimeThisPage(currentPage: number): Duration {
         return this.pages[currentPage]
-            .map(e => e == null? null: e.pic)
+            .map(e => e === null? null: e.pic)
             .map(t => t === null? 0: t)
             .reduce((a, b) => a + b)
     }
 
     dualTimeThisPage(currentPage: number): Duration {
         return this.pages[currentPage]
-            .map(e => e == null? null: e.dual)
+            .map(e => e === null? null: e.dual)
             .map(t => t === null? 0: t)
             .reduce((a, b) => a + b)
     }
@@ -226,6 +237,14 @@ class LogbookPage implements Page {
             return 0
         } else {
             return this.landingsNightGrandTotal(currentPage - 1)
+        }
+    }
+
+    nightTimePreviousPage(currentPage: number): Duration {
+        if(currentPage == 0) {
+            return 0
+        } else {
+            return this.nightTimeGrandTotal(currentPage - 1)
         }
     }
 
@@ -258,6 +277,11 @@ class LogbookPage implements Page {
     landingsNightGrandTotal(currentPage: number): Duration {
         return this.landingsNightThisPage(currentPage)
             + this.landingsNightPreviousPage(currentPage)
+    }
+
+    nightTimeGrandTotal(currentPage: number): Duration {
+        return this.nightTimeThisPage(currentPage)
+            + this.nightTimePreviousPage(currentPage)
     }
 
     picTimeGrandTotal(currentPage: number): Duration {
@@ -295,6 +319,7 @@ function logbook(logbookPage: LogbookPage): Component {
                         div(clazz("total-time"), sub(map(logbookPage.totalTime, t => text(formatHHMM(t))))),
                         div(clazz("landings-day"), numberInput(logbookPage.landingsDay)),
                         div(clazz("landings-night"), numberInput(logbookPage.landingsNight)),
+                        div(clazz("night-time"), timeInputHHMM(logbookPage.night)),
                         div(clazz("pic-time"), timeInputHHMM(logbookPage.pic)),
                         div(clazz("dual-time"), timeInputHHMM(logbookPage.dual)),
                         div(clazz("action"),
@@ -305,7 +330,7 @@ function logbook(logbookPage: LogbookPage): Component {
                     ]
                 } else {
                     let editDiv: Component
-                    if(logbookPage.editing == null) {
+                    if(logbookPage.editing === null) {
                         editDiv = div(clazz("action"), button(text("Edit"), onklick(() => { logbookPage.edit(idx) })))
                     } else {
                         editDiv = div(clazz("action"), text("\xa0"))
@@ -325,6 +350,7 @@ function logbook(logbookPage: LogbookPage): Component {
                             div(clazz("total-time")),
                             div(clazz("landings-day")),
                             div(clazz("landings-night")),
+                            div(clazz("night-time")),
                             div(clazz("pic-time")),
                             div(clazz("dual-time")),
                             editDiv
@@ -338,9 +364,10 @@ function logbook(logbookPage: LogbookPage): Component {
                             div(clazz("arr-time"), text(formatHHMM(entry.arrival))),
                             div(clazz("model"), text(logbookPage.aircraftModel(entry.aircraft))),
                             div(clazz("registration"), text(logbookPage.aircraftRegistration(entry.aircraft))),
-                            div(clazz("total-time"), text((entry.arrival == null || entry.departure == null)? "": formatHHMM(entry.arrival - entry.departure))),
-                            div(clazz("landings-day"), text(entry.landings == null? "": entry.landings.toString())),
-                            div(clazz("landings-night"), text(entry.landingsNight == null? "": entry.landingsNight.toString())),
+                            div(clazz("total-time"), text((entry.arrival === null || entry.departure === null)? "": formatHHMM(entry.arrival - entry.departure))),
+                            div(clazz("landings-day"), text(entry.landingsDay === null? "": entry.landingsDay.toString())),
+                            div(clazz("landings-night"), text(entry.landingsNight === null? "": entry.landingsNight.toString())),
+                            div(clazz("night-time"), text(formatHHMM(entry.night))),
                             div(clazz("pic-time"), text(formatHHMM(entry.pic))),
                             div(clazz("dual-time"), text(formatHHMM(entry.dual))),
                             editDiv
@@ -358,6 +385,8 @@ function logbook(logbookPage: LogbookPage): Component {
                 div(clazz("aircraft-header"), text("Aircraft")),
                 div(clazz("total-time-header"), text("Total Time of Flight")),
                 div(clazz("landings-header"), text("Landings")),
+                // div(clazz("condition-time-header"), text("Operational Condition Time")),
+                div(clazz("condition-time-header"), text("Cond. Time")),
                 div(clazz("function-time-header"), text("Pilot Function Time")),
                 div(clazz("action-header")),
                 div(clazz("dep-place-header"), text("Place")),
@@ -368,6 +397,7 @@ function logbook(logbookPage: LogbookPage): Component {
                 div(clazz("registration-header"), text("Registration")),
                 div(clazz("landings-day-header"), text("Day")),
                 div(clazz("landings-night-header"), text("Night")),
+                div(clazz("night-time-header"), text("Night")),
                 div(clazz("pic-time-header"), text("PIC")),
                 div(clazz("dual-time-header"), text("Dual")),
                 ...lines,
@@ -376,6 +406,7 @@ function logbook(logbookPage: LogbookPage): Component {
                 div(clazz("total-this-total-time"), text(formatHHMM(logbookPage.totalTimeThisPage(currentPage)))),
                 div(clazz("total-this-landings-day"), text(logbookPage.landingsDayThisPage(currentPage).toString())),
                 div(clazz("total-this-landings-night"), text(logbookPage.landingsNightThisPage(currentPage).toString())),
+                div(clazz("total-this-night-time"), text(formatHHMM(logbookPage.nightTimeThisPage(currentPage)))),
                 div(clazz("total-this-pic-time"), text(formatHHMM(logbookPage.picTimeThisPage(currentPage)))),
                 div(clazz("total-this-dual-time"), text(formatHHMM(logbookPage.dualTimeThisPage(currentPage)))),
                 div(clazz("action")),
@@ -384,6 +415,7 @@ function logbook(logbookPage: LogbookPage): Component {
                 div(clazz("total-prev-total-time"), text(formatHHMM(logbookPage.totalTimePreviousPage(currentPage)))),
                 div(clazz("total-prev-landings-day"), text(logbookPage.landingsDayPreviousPage(currentPage).toString())),
                 div(clazz("total-prev-landings-night"), text(logbookPage.landingsNightPreviousPage(currentPage).toString())),
+                div(clazz("total-prev-night-time"), text(formatHHMM(logbookPage.nightTimePreviousPage(currentPage)))),
                 div(clazz("total-prev-pic-time"), text(formatHHMM(logbookPage.picTimePreviousPage(currentPage)))),
                 div(clazz("total-prev-dual-time"), text(formatHHMM(logbookPage.dualTimePreviousPage(currentPage)))),
                 div(clazz("action")),
@@ -392,6 +424,7 @@ function logbook(logbookPage: LogbookPage): Component {
                 div(clazz("total-grand-total-time"), text(formatHHMM(logbookPage.totalTimeGrandTotal(currentPage)))),
                 div(clazz("total-grand-landings-day"), text(logbookPage.landingsDayGrandTotal(currentPage).toString())),
                 div(clazz("total-grand-landings-night"), text(logbookPage.landingsNightGrandTotal(currentPage).toString())),
+                div(clazz("total-grand-night-time"), text(formatHHMM(logbookPage.nightTimeGrandTotal(currentPage)))),
                 div(clazz("total-grand-pic-time"), text(formatHHMM(logbookPage.picTimeGrandTotal(currentPage)))),
                 div(clazz("total-grand-dual-time"), text(formatHHMM(logbookPage.dualTimeGrandTotal(currentPage)))),
                 div(clazz("action")),

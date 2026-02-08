@@ -24,7 +24,7 @@ function aircraftInput(
 }
 
 function formatHHMM(seconds: number | null): string {
-    if (seconds == null) {
+    if (seconds === null) {
         return ""
     } else {
         let mins = Math.round(seconds / 60)
@@ -39,7 +39,7 @@ function formatHHMM(seconds: number | null): string {
 }
 
 function formatHHMMt(seconds: number | null): string {
-    if (seconds == null) {
+    if (seconds === null) {
         return ""
     } else {
         let halfMinutes = Math.round(seconds / 30)
@@ -56,7 +56,7 @@ function formatHHMMt(seconds: number | null): string {
 }
 
 function formatMMSS(seconds: number | null): string {
-    if (seconds == null) {
+    if (seconds === null) {
         return ""
     } else {
         let secs = Math.round(seconds)
@@ -71,7 +71,7 @@ function formatMMSS(seconds: number | null): string {
 }
 
 function formatMMt(seconds: number | null): string {
-    if (seconds == null) {
+    if (seconds === null) {
         return ""
     } else {
         let halfMinutes = Math.round(seconds / 30)
@@ -86,7 +86,7 @@ function formatMMt(seconds: number | null): string {
 }
 
 function formatDate(date: Date | null): string {
-    if (date == null) {
+    if (date === null) {
         return ""
     } else {
         let dd = date.d < 10 ? '0' + date.d : date.d

@@ -85,6 +85,7 @@ class EntityRepo {
     init(onComplete: () => void) {
         this.versionStream.init()
         this.versionStream.load(0, (e) => {
+            e = this.transform(e)
             this.versions.push(e)
             for (let i = 0; i < this.entities.length; i++) {
                 if(this.entities[i].entity == e.entity) {
@@ -100,6 +101,22 @@ class EntityRepo {
                 this.entities.push(e)
             }
         }, onComplete)
+    }
+
+    private transform(e: any): any {
+        if(e.type === "logbook-entry") {
+            if(typeof e.landingsNight === "undefined") {
+                e.landingsNight = null
+            }
+            if(typeof e.landingsDay === "undefined") {
+                e.landingsDay = e.landings
+            }
+            delete e.landings
+            if(typeof e.night === "undefined") {
+                e.night = null
+            }
+        }
+        return e
     }
 
     save(entityVersions: VersionedEntity[]) {

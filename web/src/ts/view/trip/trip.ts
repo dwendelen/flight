@@ -17,7 +17,7 @@ class TripPage implements Page {
     ) {
         this.aerodromes = entityRepo.getAllOfType("aerodrome")
 
-        if(trip == null) {
+        if(trip === null) {
             this.name = new Value("New Trip")
             this.tripPlan = null
         } else {
@@ -33,7 +33,7 @@ class TripPage implements Page {
         }
 
         let tripPlan = this.tripPlan
-        if(this.tripPlan == null) {
+        if(this.tripPlan === null) {
             this.firstStop = new Value(null)
             this.powerSetting = new Value(null)
             this.ias = new Value(null)

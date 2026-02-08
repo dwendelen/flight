@@ -8,9 +8,11 @@ interface LogbookEntry extends VersionedEntity {
     departure: Time | null
     arrival: Time | null
     aircraft: AircraftVersion | null
-    landings: number | null
+    landingsDay: number | null
     // Might be undefined for older events
     landingsNight: number | null
+    // Might be undefined for older events
+    night: Duration | null
     pic: Duration | null
     dual: Duration | null
     trip: TripId | null

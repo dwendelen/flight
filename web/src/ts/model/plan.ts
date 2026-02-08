@@ -241,7 +241,7 @@ function calculatePlan(tripPlan: TripPlan): CalculatedTrip {
 }
 
 function mul(a: number | null, b: number | null): number | null {
-    if(a == null || b == null) {
+    if(a === null || b === null) {
         return null
     } else {
         return a * b
@@ -249,7 +249,7 @@ function mul(a: number | null, b: number | null): number | null {
 }
 
 function divi(a: number | null, b: number | null): number | null {
-    if(a == null || b == null) {
+    if(a === null || b === null) {
         return null
     } else {
         return a / b
@@ -257,7 +257,7 @@ function divi(a: number | null, b: number | null): number | null {
 }
 
 function add(a: number | null, b: number | null): number | null {
-    if(a == null || b == null) {
+    if(a === null || b === null) {
         return null
     } else {
         return a + b
@@ -265,7 +265,7 @@ function add(a: number | null, b: number | null): number | null {
 }
 
 function subt(a: number | null, b: number | null): number | null {
-    if(a == null || b == null) {
+    if(a === null || b === null) {
         return null
     } else {
         return a - b
@@ -416,7 +416,7 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
     ]
 
     function formatFuel(num: number | null) {
-        if (num == null) {
+        if (num === null) {
             return ""
         } else {
             let str = Math.round(num * 10).toString()
@@ -428,7 +428,7 @@ function printTrip(trip: CalculatedTrip): PdfPage[] {
     }
 
     function formatInt(num: number | null) {
-        if (num == null) {
+        if (num === null) {
             return ""
         } else {
             let str = Math.round(num).toString()
